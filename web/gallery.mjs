@@ -1,0 +1,350 @@
+'use strict';
+const $ = (id) => document.getElementById(id);
+
+const LIBS = {
+  costume: {
+    label: '服装', unit: '套', note: '服装参考档案',
+    headline: '为角色，找到合适的衣装。',
+    blurb: '从四季日常到特别场合，浏览无人物的服装搭配参考。<br>搜索并选择服装，直接输出到 ComfyUI 图像工作流。',
+    placeholder: '试试 蕾丝、牛仔、白色 或 SPR-0001',
+    source: 'https://ai-costume-gallery.pages.dev/',
+  },
+  pose: {
+    label: '姿势', unit: '个', note: '姿势参考档案',
+    headline: '让角色，摆出准确的姿势。',
+    blurb: '288 个无脸灰色人偶线稿，每个动作五个机位。<br>选好姿势与角度，直接接进姿态或线稿控制流程。',
+    placeholder: '试试 站立、坐姿、双人 或 POS-SEXY-P001',
+    source: 'https://ai-pose-gallery.pages.dev/',
+  },
+  face: {
+    label: '脸部', unit: '张', note: '脸部参考档案',
+    headline: '先把脸定下来。',
+    blurb: '正面、纯色背景的头部参考，覆盖短发到长发四种发型。<br>选好脸再套服装，人设不容易跑。',
+    placeholder: '试试 短发、长发、造型 或 FACE-0001',
+    source: 'https://ai-portrait-gallery.pages.dev/',
+  },
+};
+
+const requested = new URLSearchParams(location.search).get('lib');
+const lib = Object.hasOwn(LIBS, requested) ? requested : 'costume';
+const config = LIBS[lib];
+const angleOrder = ['正面', '俯视', '仰视', '侧面', '斜45°'];
+
+let records = [], filtered = [], category = '', subcategory = '', angle = '';
+let shown = 0, current = 0, selectedId = '';
+// 每次翻页自增：异步加载的原图回来时用它判断用户是否已经翻走，避免旧图盖新图。
+let detailToken = 0;
+let originTemplate = '', originSite = '', offlineOnly = false;
+const PAGE = 60;
+
+const isMap = (value) => value !== null && typeof value === 'object';
+
+function element(tag, text, className) {
+  const node = document.createElement(tag);
+  if (text !== undefined) node.textContent = text;
+  if (className) node.className = className;
+  return node;
+}
+
+function thumbOf(row) {
+  if (row.封面) return row.封面;
+  return isMap(row.缩略图) ? Object.values(row.缩略图)[0] : row.缩略图;
+}
+
+function angleKeys(row) {
+  if (Array.isArray(row.视角)) return row.视角;
+  if (isMap(row.原图)) return Object.keys(row.原图);
+  return [];
+}
+
+function assetOf(row, field, pick) {
+  const value = row[field];
+  if (!isMap(value)) return value;
+  return value[pick] || Object.values(value)[0];
+}
+
+// 索引里存的是相对路径（如 pose/thumbs/x.webp），页面统一改成可访问的 /ref_lookbook/assets/... URL
+function asUrl(value) {
+  if (isMap(value)) return Object.fromEntries(Object.entries(value).map(([key, path]) => [key, asUrl(path)]));
+  if (typeof value !== 'string' || !value) return value;
+  const parts = value.split('/');
+  return `assets/${lib}/${parts.at(-2)}/${parts.at(-1)}`;
+}
+
+function withUrls(row) {
+  return {
+    ...row,
+    缩略图: asUrl(row.缩略图),
+    预览图: asUrl(row.预览图),
+    原图: asUrl(row.原图),
+    原图源: remoteOf(row.原图),
+    封面: asUrl(row.封面),
+  };
+}
+
+// 原图不进仓库：按文件名拼上游地址，本地缺图时直接向作者站点取，个人保存不额外授权也不再分发。
+function remoteOf(value) {
+  if (isMap(value)) return Object.fromEntries(Object.entries(value).map(([key, path]) => [key, remoteOf(path)]));
+  if (typeof value !== 'string' || !value || !originTemplate) return '';
+  const stem = value.split('/').at(-1).replace(/\.[^.]+$/, '');
+  return originTemplate.replace('{stem}', encodeURIComponent(stem));
+}
+
+function tagText(row) {
+  return (row.关键词 || []).join(' · ');
+}
+
+function chipsOf(field) {
+  const counts = new Map([['', records.length]]);
+  records.forEach((row) => { if (row[field]) counts.set(row[field], (counts.get(row[field]) || 0) + 1); });
+  return counts;
+}
+
+function renderChips(container, field, active, onPick, label) {
+  const counts = chipsOf(field);
+  if (counts.size <= 2) { container.replaceChildren(); container.hidden = true; return; }
+  container.hidden = false;
+  container.replaceChildren(...[...counts].map(([name, count]) => {
+    const button = element('button', name || label);
+    button.append(element('span', count.toLocaleString()));
+    button.setAttribute('aria-pressed', String(active === name));
+    button.addEventListener('click', () => onPick(name));
+    return button;
+  }));
+}
+
+function renderCategories() {
+  renderChips($('categories'), '分类', category, (name) => { category = name; subcategory = ''; applyFilters(); }, '全部');
+  renderChips($('subcategories'), '分类2', subcategory, (name) => { subcategory = name; applyFilters(); }, '全部');
+}
+
+function applyFilters() {
+  const words = $('q').value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  filtered = records.filter((row) => (!category || row.分类 === category)
+    && (!subcategory || row.分类2 === subcategory)
+    && words.every((word) => (row.检索 || '').includes(word)));
+  shown = 0;
+  $('grid').replaceChildren();
+  renderCategories();
+  const title = [category, subcategory].filter(Boolean).join(' · ') || `全部${config.label}`;
+  $('section-title').textContent = title;
+  $('empty').hidden = filtered.length > 0;
+  appendPage();
+}
+
+function appendPage() {
+  const start = shown;
+  const cards = filtered.slice(start, start + PAGE).map((row, index) => {
+    const button = element('button', undefined, 'card');
+    button.setAttribute('aria-label', `查看 ${row.id} ${row.分类}`);
+    button.setAttribute('aria-current', String(row.id === selectedId));
+    const img = element('img');
+    img.src = thumbOf(row);
+    img.alt = [row.id, row.分类, row.分类2, tagText(row)].filter(Boolean).join(' ');
+    img.loading = 'lazy'; img.decoding = 'async'; img.width = 300; img.height = 450;
+    img.addEventListener('error', () => { img.alt = `${row.id} 缩略图缺失：内置图库不完整，请重新安装节点`; });
+    const info = element('div', undefined, 'card-info');
+    const heading = element('div', undefined, 'card-heading');
+    heading.append(element('h3', row.id), element('span', row.分类2 || row.分类, 'card-cat'));
+    info.append(heading, element('p', tagText(row)));
+    button.append(img, info);
+    button.addEventListener('click', () => { current = start + index; showDetail(); $('viewer').showModal(); });
+    return button;
+  });
+  $('grid').append(...cards); shown += cards.length;
+  $('status').textContent = `共 ${filtered.length.toLocaleString()} ${config.unit} · 已显示 ${shown.toLocaleString()} ${config.unit}`;
+  $('more').hidden = shown >= filtered.length;
+  $('more').textContent = `加载更多（剩余 ${filtered.length - shown} ${config.unit}）`;
+}
+
+function currentAsset(field) {
+  return assetOf(filtered[current], field, angle);
+}
+
+function renderAngles(row) {
+  const keys = angleKeys(row);
+  const box = $('angles');
+  if (keys.length <= 1) { box.hidden = true; box.replaceChildren(); return; }
+  box.hidden = false;
+  if (!keys.includes(angle)) angle = keys[0];
+  box.replaceChildren(...keys.map((key) => {
+    const button = element('button', key);
+    button.setAttribute('aria-pressed', String(angle === key));
+    button.addEventListener('click', () => { angle = key; showDetail(); });
+    return button;
+  }));
+}
+
+function showDetail() {
+  const row = filtered[current];
+  angle = angleKeys(row).includes(angle) ? angle : (angleKeys(row)[0] || '');
+  $('detail-title').textContent = row.id;
+  $('detail-cat').textContent = [row.分类, row.分类2].filter(Boolean).join(' · ');
+  $('position').textContent = `${current + 1} / ${filtered.length}`;
+  $('tags').textContent = tagText(row);
+  $('english').textContent = row.日文 || row.英文关键词 || '—';
+  renderAngles(row);
+
+  // 大图：缩略图先占位，本机原图后台加载完再替换。
+  // 本机缺原图时后端会取一次并落盘到 library/<库>/png/，首次可能要几秒到几十秒，
+  // 所以不能用 <img>.src 直接指过去干等——弹窗会长时间空白。
+  const localOriginal = currentAsset('原图');
+  const remoteOriginal = currentAsset('原图源');
+  const thumb = currentAsset('缩略图');
+  const token = ++detailToken;
+
+  const setStatus = (text, state) => {
+    if (token !== detailToken) return;
+    $('image-status').textContent = text;
+    $('image-status').dataset.state = state;
+  };
+  const showImage = (src) => {
+    if (token === detailToken) $('large').src = src;
+  };
+
+  if (thumb) showImage(thumb);
+  $('large').alt = `${row.id} ${tagText(row)}`;
+  setStatus(localOriginal ? '正在载入原图…' : '正在载入原图，首次使用会从作者源站取一次并存入本机…', 'loading');
+
+  const load = (src) => new Promise((resolve, reject) => {
+    const probe = new Image();
+    probe.onload = () => resolve(src);
+    probe.onerror = reject;
+    probe.src = src;
+  });
+
+  // 一级：本机原图（后端按需获取并缓存）。二级：后端取不到时浏览器直连源站，仅兜底不缓存。
+  load(localOriginal)
+    .then((src) => { showImage(src); setStatus('原图，已缓存到本机', 'ok'); })
+    .catch(() => {
+      if (!remoteOriginal) { setStatus('本机无原图且源站不可达，当前仅显示缩略图', 'info'); return; }
+      setStatus('本机没有原图，正在向作者源站直接请求…', 'loading');
+      return load(remoteOriginal)
+        .then((src) => { showImage(src); setStatus('后端取图失败，改由浏览器直连作者源站（本张未缓存到本机）', 'info'); })
+        .catch(() => setStatus('原图与缩略图均不可用，请检查素材目录或网络。', 'error'));
+    });
+
+  // 下载与"在新标签打开"都优先本机缓存：命中就不必再打源站。
+  const originalHref = localOriginal || remoteOriginal;
+  $('download').href = originalHref;
+  $('download').download = `${row.id}${angle ? '-' + angle : ''}.png`;
+  $('open-original').href = originalHref;
+  $('prev').disabled = current === 0; $('next').disabled = current === filtered.length - 1;
+  $('copy').textContent = '复制 ID';
+  $('use-item').disabled = window.parent === window;
+  $('use-item').textContent = window.parent === window ? `请从 ComfyUI 节点打开以使用${config.label}` : `使用此${config.label} → ComfyUI`;
+}
+
+$('q').addEventListener('input', applyFilters);
+$('reset').addEventListener('click', () => { category = ''; subcategory = ''; $('q').value = ''; applyFilters(); });
+$('more').addEventListener('click', appendPage);
+$('close').addEventListener('click', () => $('viewer').close());
+$('help').addEventListener('click', () => $('guide').showModal());
+$('prev').addEventListener('click', () => { if (current > 0) { current--; showDetail(); } });
+$('next').addEventListener('click', () => { if (current < filtered.length - 1) { current++; showDetail(); } });
+$('copy').addEventListener('click', async () => {
+  try { await navigator.clipboard.writeText(filtered[current].id); $('copy').textContent = '已复制'; }
+  catch { $('copy').textContent = '复制失败，请手动复制上方 ID'; }
+});
+$('download').addEventListener('click', async (event) => {
+  const link = event.currentTarget;
+  if (new URL(link.href).origin === location.origin) return;
+  event.preventDefault();
+  if (link.getAttribute('aria-disabled') === 'true') return;
+  const href = link.href, filename = link.download;
+  link.setAttribute('aria-disabled', 'true');
+  link.textContent = '正在下载…';
+  let label = '下载 PNG 原图';
+  try {
+    const response = await fetch(href);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const url = URL.createObjectURL(await response.blob());
+    const save = element('a');
+    save.href = url; save.download = filename; save.hidden = true;
+    document.body.append(save); save.click(); save.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch {
+    label = '下载失败，请点“打开原图”';
+  } finally {
+    link.removeAttribute('aria-disabled');
+    link.textContent = label;
+  }
+});
+document.addEventListener('keydown', (e) => {
+  if ($('viewer').open) {
+    if (e.key === 'ArrowLeft') { e.preventDefault(); $('prev').click(); }
+    if (e.key === 'ArrowRight') { e.preventDefault(); $('next').click(); }
+  } else if (e.key === '/' && !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName) && !$('guide').open) {
+    e.preventDefault(); $('q').focus();
+  }
+});
+for (const dialog of [$('viewer'), $('guide')]) dialog.addEventListener('click', (e) => {
+  const box = dialog.getBoundingClientRect();
+  if (e.target === dialog && (e.clientX < box.left || e.clientX > box.right || e.clientY < box.top || e.clientY > box.bottom)) dialog.close();
+});
+
+// ?lib=pose&id=POS-SEXY-P001 直接打开某个素材，方便分享与排查
+function openDeepLink() {
+  const wanted = new URLSearchParams(location.search).get('id');
+  if (!wanted) return;
+  const index = filtered.findIndex((row) => row.id === wanted);
+  if (index < 0) return;
+  current = index;
+  showDetail();
+  $('viewer').showModal();
+}
+
+function applyLibraryChrome() {
+  document.body.dataset.lib = lib;
+  document.title = `${config.label} · AI 参考图库｜服装 · 姿势 · 脸部`;
+  $('headline').innerHTML = config.headline;
+  $('blurb').innerHTML = config.blurb;
+  $('note-label').textContent = config.note;
+  $('q').placeholder = config.placeholder;
+  $('source-link').href = config.source;
+  for (const tab of $('tabs').querySelectorAll('a')) {
+    if (tab.dataset.lib === lib) tab.setAttribute('aria-current', 'page');
+    else tab.removeAttribute('aria-current');
+  }
+}
+
+async function init() {
+  applyLibraryChrome();
+  try {
+    const response = await fetch(`catalog/${lib}`);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const payload = await response.json();
+    if (payload?.error) throw new Error(payload.error);
+    const rows = Array.isArray(payload) ? payload : payload.records;
+    if (!Array.isArray(rows) || !rows.length) throw new Error('数据为空');
+    originTemplate = payload?.origin?.template || '';
+    originSite = payload?.origin?.site || config.source;
+    offlineOnly = Boolean(payload?.origin?.offline);
+    if (offlineOnly) $('offline-note').hidden = false;
+    records = rows.map(withUrls);
+    const categories = new Set(records.map((row) => row.分类).filter(Boolean)).size;
+    $('total').textContent = `${records.length.toLocaleString()} ${config.unit} / ${categories} 个分类`;
+    applyFilters();
+    openDeepLink();
+    if (window.parent !== window) window.parent.postMessage({ type: 'ref-gallery-ready', library: lib }, location.origin);
+  } catch (error) {
+    $('status').textContent = '数据加载失败，请刷新重试。请检查节点 library/data 和完整素材目录。';
+    $('total').textContent = '暂时无法读取';
+    console.error('参考图库数据加载失败', error);
+  }
+}
+init();
+
+$('use-item').addEventListener('click', () => {
+  const row = filtered[current];
+  if (window.parent !== window && row) window.parent.postMessage({ type: 'ref-gallery-select', library: lib, id: row.id, angle }, location.origin);
+});
+window.addEventListener('message', (event) => {
+  if (event.origin !== location.origin || event.source !== window.parent || event.data?.type !== 'ref-gallery-current') return;
+  if (event.data.library && event.data.library !== lib) return;
+  const id = event.data.id;
+  if (typeof id !== 'string' || !records.some((row) => row.id === id)) return;
+  selectedId = id;
+  if (typeof event.data.angle === 'string' && event.data.angle) angle = event.data.angle;
+  applyFilters();
+});

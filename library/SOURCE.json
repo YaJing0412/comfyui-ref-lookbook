@@ -1,0 +1,63 @@
+{
+  "repository": "https://github.com/YaJing0412/comfyui-ref-lookbook",
+  "index_source": {
+    "costume": "ai-costume-gallery-zh @28616efb36e97b7c2f1ba451814cf3ad4649ad9a",
+    "pose": "ai-ref-library-cn (pose.js) + 本地原图重建",
+    "face": "ai-ref-library-cn (face.js) + 本地原图重建"
+  },
+  "snapshot_date": "2026-10-30",
+  "distribution": {
+    "shipped": [
+      "data",
+      "face/thumbs",
+      "pose/thumbs",
+      "costume/thumbs"
+    ],
+    "not_shipped": [
+      "png",
+      "img"
+    ],
+    "reason": "姿势与服装库上游授权禁止再分发图片本体（含加工版）；原图不随仓库发行。缩略图为离线浏览随仓库内置，重打包自 ai-ref-library-cn 的内嵌缩略图，版权归原作者，权利人可要求移除",
+    "thumbs_strategy": "缩略图随仓库发行（webp，约 13 MB，来自 ai-ref-library-cn 内嵌缩略图原样重打包）；个别缺失时仍可按单张从作者站点取一次并缓存",
+    "originals_strategy": "节点出图或看大图时取一次，缓存在本机 library/<库>/png/，之后完全离线"
+  },
+  "runtime_downloads": "on-demand, one image per request, cached locally, never re-distributed",
+  "original_author": {
+    "costume_pose": "ギア (@giaaibusi)",
+    "face": "あぎ (@agi_aibusi)"
+  },
+  "libraries": {
+    "costume": {
+      "records": 1407,
+      "images": 1407,
+      "index": "data/costume-zh.json",
+      "original_site": "https://ai-costume-gallery.pages.dev/",
+      "origin_template": "https://ai-costume-gallery.pages.dev/png/{stem}.png",
+      "thumb_template": "https://ai-costume-gallery.pages.dev/thumbs/{stem}.webp",
+      "license": "参考使用；禁止再分发图片本体（含加工版）；禁止批量自动抓取"
+    },
+    "pose": {
+      "records": 288,
+      "images": 1439,
+      "index": "data/pose-zh.json",
+      "original_site": "https://ai-pose-gallery.pages.dev/",
+      "origin_template": "https://ai-pose-gallery.pages.dev/img/{stem}.png",
+      "thumb_template": "https://ai-pose-gallery.pages.dev/thumbs/{stem}.jpg",
+      "license": "参考使用；禁止再分发图片本体（含加工版）；禁止批量自动抓取",
+      "note": "每个动作 5 个机位，P018 上游缺「仰视」，因此 288 个动作共 1439 张"
+    },
+    "face": {
+      "records": 1498,
+      "images": 1498,
+      "index": "data/face-zh.json",
+      "original_site": "https://ai-portrait-gallery.pages.dev/",
+      "origin_template": "https://ai-portrait-gallery.pages.dev/img/full/{stem}.png",
+      "thumb_template": "https://ai-portrait-gallery.pages.dev/img/thumb/{stem}.webp",
+      "license": "CC0",
+      "note": "上游索引 1499 条，本地原图缺 f2a26328a48.png，已剔除该记录"
+    }
+  },
+  "records_total": 3193,
+  "images_total": 4344,
+  "chinese_index_source": "ai-ref-library-cn (pose.js / face.js 中文标签与编号)"
+}

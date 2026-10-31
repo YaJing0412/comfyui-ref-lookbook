@@ -1,0 +1,31 @@
+MIT License
+
+Copyright (c) 2026 comfyui-ref-lookbook contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+--- 适用范围 / Scope ---
+
+本许可只覆盖本仓库自有的程序代码与工作流：__init__.py、catalog.py、web/、
+tools/、tests/、example_workflows/ 下的 .json 与 .md。
+
+不覆盖：library/data/ 下的中文索引与译文、任何图片、以及上游素材的原始数据。
+这些内容的权利归属与使用边界见 THIRD_PARTY_NOTICES.md。
+
+上游参考项目的 MIT 许可原样保留在 licenses/ 目录。

@@ -1,6 +1,6 @@
 # 图库目录
 
-本目录随仓库发行的是**中文索引与分类数据**（`data/`，约 1.7 MB）与**内置缩略图**（`<库>/thumbs/`，4,344 张 WebP，约 13 MB，重打包自 ai-ref-library-cn，离线开箱可浏览）：
+本目录随仓库发行的是**中文索引与分类数据**（`data/`，约 1.7 MB）与**内置缩略图**（`<库>/thumbs/`，4,344 张 WebP，约 13 MB，取自 [ai-ref-library-cn](https://github.com/sleepy-zone/ai-ref-library-cn)，离线开箱可浏览）：
 
 | 库 | 记录 | 索引 | 缩略图（内置） | 原图 / 预览（运行时缓存） |
 | --- | --- | --- | --- | --- |
@@ -33,6 +33,6 @@
 
 ## 授权
 
-服装与姿势库的上游授权**禁止再分发图片本体（含加工版）**，也禁止批量自动抓取；脸部库为 CC0。原图与全尺寸预览（`png/`、`img/`）在 `.gitignore` 里，只能本机生成。内置缩略图重打包自 ai-ref-library-cn 的内嵌缩略图，属超出上游明示授权的已知取舍，详见 [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md)；上游版本与数量见 [SOURCE.json](SOURCE.json)。
+服装与姿势库的上游授权**禁止再分发图片本体（含加工版）**，也禁止批量自动抓取；脸部库为 CC0。原图与全尺寸预览（`png/`、`img/`）在 `.gitignore` 里，只能本机生成。内置缩略图取自上游仓库 [ai-ref-library-cn](https://github.com/sleepy-zone/ai-ref-library-cn) 的内嵌缩略图，属超出上游明示授权的已知取舍，详见 [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md)；上游版本与数量见 [SOURCE.json](SOURCE.json)。
 
-姿势与脸部索引整理自参考项目 ai-ref-library-cn 的元数据，并按本地素材校正。
+姿势与脸部索引取自上游仓库 ai-ref-library-cn 的元数据（`pose.js` / `face.js`），并按本地素材校正。

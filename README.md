@@ -77,7 +77,7 @@ LoRA 是 AHEKOT 的 VNCCS PoseStudio Qwen Image 2.1 v2.0：[Civitai](https://civ
 
 ## 图片怎么来
 
-**缩略图**（4,344 张 WebP，约 13 MB）随仓库内置，重打包自 [ai-ref-library-cn](https://github.com/sleepy-zone/ai-ref-library-cn) 的内嵌缩略图，内容未修改，离线可完整浏览。
+**缩略图**（4,344 张 WebP，约 13 MB）随仓库内置，取自 [ai-ref-library-cn](https://github.com/sleepy-zone/ai-ref-library-cn) 的内嵌缩略图，内容未修改，离线可完整浏览。
 
 **原图**不进仓库（体积大，且上游禁止再分发），运行时按素材文件名拼源站地址取一次：
 
@@ -129,7 +129,7 @@ comfyui-ref-lookbook/
 | 姿势 | [姿勢集 POSE-DB-01](https://ai-pose-gallery.pages.dev/) | ギア [@giaaibusi](https://x.com/giaaibusi) | 同上 | ❌ |
 | 脸部 | [AIモデル顔データベース](https://ai-portrait-gallery.pages.dev/) | あぎ [@agi_aibusi](https://x.com/agi_aibusi) | CC0 | ✅（本仓库仍不分发） |
 
-三套素材全是 AI 生成，不含真实人物。
+三套素材全是 AI 生成，不含真实人物。姿势与脸部的中文标签、动作清单与内置缩略图取自 [sleepy-zone/ai-ref-library-cn](https://github.com/sleepy-zone/ai-ref-library-cn)——一个同样整理这三套素材的中文检索界面，只收录缩略图、不含原图；服装库的中文索引取自 [ai-costume-gallery-zh](https://github.com/wangweihong/ai-costume-gallery-zh)。
 
 参考项目：
 
@@ -138,7 +138,6 @@ comfyui-ref-lookbook/
 | [wangweihong/ai-costume-gallery-zh](https://github.com/wangweihong/ai-costume-gallery-zh) | 界面结构与中文分类思路（MIT，见 [`licenses/`](licenses/)） |
 | [wangweihong/comfyui-pose-gallery](https://github.com/wangweihong/comfyui-pose-gallery) | 节点与弹窗的交互方式（MIT，见 [`licenses/`](licenses/)） |
 | [anhao/ai-pose-gallery-zh](https://github.com/anhao/ai-pose-gallery-zh) | 汉化与分类口径的参考 |
-| `ai-ref-library-cn`（本地参考） | 姿势动作清单、脸部发型分类与中文标签；内置缩略图来源 |
 
 本项目独立编写的部分：三库合成一个节点包并统一分类与搜索；节点预览直接画在画布上（不用 DOM 控件，避免布局漂移与溢出）；「本机 → 源站 → 缓存」取图链路、原子写入、文件头校验、离线模式；选中素材可导入任意原生节点。
 

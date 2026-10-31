@@ -2,7 +2,7 @@
 
 ## 素材来源
 
-三套素材来自原作者公开的 AI 作图参考图库；中文分类、动作描述与编号整理自本地参考项目 `ai-ref-library-cn`。
+三套素材来自原作者公开的 AI 作图参考图库；中文分类、动作描述、编号与内置缩略图，取自上游仓库 [sleepy-zone/ai-ref-library-cn](https://github.com/sleepy-zone/ai-ref-library-cn)。
 
 | 库 | 原始站点 | 记录 | 授权原文要点 | 能否再分发图片 |
 | --- | --- | --- | --- | --- |
@@ -14,11 +14,17 @@
 
 原作者：服装与姿势为 ギア（[@giaaibusi](https://x.com/giaaibusi)），脸部站标注运营者为 あぎ（[@agi_aibusi](https://x.com/agi_aibusi)）。感谢两位把素材公开出来。本项目保留原始 ID、日文 / 英文关键词与素材路径，另附中文翻译供检索；本项目是独立的本地图库实践，不代表原作者的官方版本或背书。
 
+## 数据来源
+
+姿势与脸部的中文标签、动作清单、发型分类，以及三库的内置缩略图，都来自第三方仓库 [sleepy-zone/ai-ref-library-cn](https://github.com/sleepy-zone/ai-ref-library-cn)（AI 作图素材库中文版）；服装库的中文索引另取自 [ai-costume-gallery-zh](https://github.com/wangweihong/ai-costume-gallery-zh)。使用方式是把这些仓库完整下载到本机后离线整理，不是当作代码参考，也没有复制它们的界面代码。
+
+该仓库同样只收录缩略图、不含原图，自带中文译文与「随机组合」提示词功能；仓库未附开源许可，因此本项目**不主张**对其代码或数据的任何权利，中文标签与缩略图的版权仍归上游作者。缩略图是原样取用、未再加工；个别库的条目数量差异（如脸部 1,499 → 1,498）来自本地原图核对，与上游索引无关。
+
 ## 本仓库分发边界
 
 **原图不分发。** `library/` 里的 `png/`、`img/` 全部列入 `.gitignore`，原图只能由使用者本机在运行时获取或自行放入。
 
-**缩略图随仓库内置**（`library/<库>/thumbs/`，4,344 张 WebP，约 13 MB）：为离线浏览重打包自参考项目 `ai-ref-library-cn` 的内嵌缩略图，未修改内容。需要明确：上表「画像データそのもの（元サイズ・加工後を含む）の再配布は禁止」按字面同样涵盖缩略图，内置缩略图**超出了上游明示的授权范围**，这是本项目的已知取舍；作为对冲，取图链路保留「按单张从源站取一次并缓存」的完整回退，权利人提出异议时会把缩略图移出仓库，功能不受影响。
+**缩略图随仓库内置**（`library/<库>/thumbs/`，4,344 张 WebP，约 13 MB）：为离线浏览取自 `ai-ref-library-cn` 的内嵌缩略图，未修改内容。需要明确：上表「画像データそのもの（元サイズ・加工後を含む）の再配布は禁止」按字面同样涵盖缩略图，内置缩略图**超出了上游明示的授权范围**，这是本项目的已知取舍；作为对冲，取图链路保留「按单张从源站取一次并缓存」的完整回退，权利人提出异议时会把缩略图移出仓库，功能不受影响。
 
 程序不做全库预取或批量导出：原图只在节点真正出图或看大图时按单张请求。这与「用工具把数据库一次性抓下来」是两件事，后者被上游明确禁止，本项目不提供该能力。
 
@@ -28,7 +34,7 @@
 | --- | --- | --- |
 | 本项目程序代码与工作流 | `__init__.py`、`catalog.py`、`web/`、`tests/`、`example_workflows/*.json`、`example_workflows/*.md` | MIT，见 [LICENSE](LICENSE) |
 | 中文索引与译文 | `library/data/`、`library/SOURCE.json` | 基于源站元数据及其译文；不因汉化而获得素材授权，不适用 MIT |
-| 内置缩略图 | `library/<库>/thumbs/` | 重打包自 ai-ref-library-cn 的内嵌缩略图；图片版权归上游作者，不适用 MIT，权利人可要求移除 |
+| 内置缩略图 | `library/<库>/thumbs/` | 取自 [ai-ref-library-cn](https://github.com/sleepy-zone/ai-ref-library-cn) 的内嵌缩略图；图片版权归上游作者，不适用 MIT，权利人可要求移除 |
 | 示例效果图 | `example_workflows/assets/` | 本项目工作流实跑输出，随代码以 MIT 发布 |
 | 上游参考项目许可原文 | `licenses/` | 原样保留，未修改 |
 
@@ -39,9 +45,8 @@
 - [ai-costume-gallery-zh](https://github.com/wangweihong/ai-costume-gallery-zh)：服装库界面结构、分类与中文索引思路。
 - [comfyui-pose-gallery](https://github.com/wangweihong/comfyui-pose-gallery)：节点预览与弹窗桥接方式。
 - [ai-pose-gallery-zh](https://github.com/anhao/ai-pose-gallery-zh)：姿势素材汉化与分类口径。
-- `ai-ref-library-cn`：三库统一入口、姿势动作清单与脸部发型分类的中文标签来源；随仓库内置的缩略图也重打包自其内嵌数据。
 
-界面与脚本由本项目独立编写，未复制参考项目代码。参考关系不意味着上述维护者为本项目或素材使用提供背书或授权。
+界面与脚本由本项目独立编写，未复制参考项目代码。参考关系不意味着上述维护者为本项目或素材使用提供背书或授权。数据来源 `ai-ref-library-cn` 见上文「数据来源」一节。
 
 ## 权利联系
 

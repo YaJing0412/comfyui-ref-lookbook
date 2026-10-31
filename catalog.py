@@ -3,8 +3,8 @@
 三个图库共用根目录 library/，每个库一个同名子目录，内部结构完全一致：
   library/{costume,pose,face}/{thumbs,png,img}
 
-仓库随包发行缩略图（thumbs，4,344 张 WebP，约 13 MB，原样重打包自 ai-ref-library-cn
-的内嵌缩略图，未修改内容）：
+仓库随包发行缩略图（thumbs，4,344 张 WebP，约 13 MB，原样取自上游仓库
+sleepy-zone/ai-ref-library-cn 的内嵌缩略图，未修改内容）：
   * 图库界面与节点预览读内置缩略图，离线开箱可览；
   * 原图（png）与全尺寸预览（img）不进仓库：节点出图或看大图时按
     “本地优先 → 上游下载并缓存到 library/{库}/png/”的顺序取，用过的原图落盘后完全离线；

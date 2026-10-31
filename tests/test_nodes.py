@@ -99,11 +99,13 @@ nodes = _load_nodes()
 
 class InputDefinitionTests(unittest.TestCase):
     def test_angle_is_optional_so_api_callers_can_omit_it(self):
-        spec = nodes.PoseGallery.INPUT_TYPES()
-        self.assertNotIn('angle', spec['required'], 'angle 放回 required 会让省略该键的 API 调用整条链被丢弃')
-        self.assertIn('angle', spec.get('optional', {}))
-        self.assertEqual(spec['optional']['angle'][0], nodes.ANGLES)
-        self.assertEqual(spec['optional']['angle'][1]['default'], nodes.ANGLES[0])
+        for cls in (nodes.PoseGallery, nodes.DepthGallery):
+            spec = cls.INPUT_TYPES()
+            with self.subTest(node=cls.__name__):
+                self.assertNotIn('angle', spec['required'], 'angle 放回 required 会让省略该键的 API 调用整条链被丢弃')
+                self.assertIn('angle', spec.get('optional', {}))
+                self.assertEqual(spec['optional']['angle'][0], nodes.ANGLES)
+                self.assertEqual(spec['optional']['angle'][1]['default'], nodes.ANGLES[0])
 
     def test_libraries_without_angles_have_no_angle_input(self):
         for cls in (nodes.FaceGallery, nodes.CostumeGallery):
@@ -115,7 +117,8 @@ class InputDefinitionTests(unittest.TestCase):
     def test_pose_validation_accepts_missing_angle(self):
         for cls, widget, value in ((nodes.PoseGallery, 'pose_id', 'POS-SEXY-P031'),
                                    (nodes.FaceGallery, 'face_id', 'FACE-0001'),
-                                   (nodes.CostumeGallery, 'costume_id', 'SPR-0002')):
+                                   (nodes.CostumeGallery, 'costume_id', 'SPR-0002'),
+                                   (nodes.DepthGallery, 'depth_id', 'DEP-SEXY-P031')):
             with self.subTest(node=cls.__name__):
                 self.assertIs(cls.VALIDATE_INPUTS(**{widget: value}), True)
 
@@ -127,6 +130,31 @@ class InputDefinitionTests(unittest.TestCase):
     def test_pose_default_angle_falls_back_to_first_viewpoint(self):
         row = nodes.item('pose', 'POS-SEXY-P031')
         self.assertEqual(nodes.pick(row, '原图', None), row['原图'][nodes.ANGLES[0]])
+
+
+class RegistrationTests(unittest.TestCase):
+    def test_four_nodes_are_registered(self):
+        self.assertEqual(set(nodes.NODE_CLASS_MAPPINGS),
+                         {'CostumeGallery', 'PoseGallery', 'FaceGallery', 'DepthGallery'})
+        for key in nodes.NODE_CLASS_MAPPINGS:
+            with self.subTest(node=key):
+                self.assertIn(key, nodes.NODE_DISPLAY_NAME_MAPPINGS)
+
+    def test_every_default_id_exists_in_its_library(self):
+        for cls in nodes.NODE_CLASS_MAPPINGS.values():
+            with self.subTest(node=cls.__name__):
+                self.assertEqual(nodes.item(cls.LIBRARY, cls.DEFAULT_ID)['id'], cls.DEFAULT_ID)
+
+    def test_depth_and_pose_share_pose_ids(self):
+        """深度节点和姿势节点的 ID 只差前缀，切库时编号规则一致。"""
+        for lib in ('pose', 'depth'):
+            row = nodes.item(lib, cls_default(lib))
+            with self.subTest(library=lib):
+                self.assertEqual(len(row['原图']), 5)
+
+
+def cls_default(library):
+    return {'pose': nodes.PoseGallery.DEFAULT_ID, 'depth': nodes.DepthGallery.DEFAULT_ID}[library]
 
 
 class ImportToInputTests(unittest.TestCase):

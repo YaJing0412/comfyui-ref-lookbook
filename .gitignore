@@ -4,7 +4,7 @@ __pycache__/
 .DS_Store
 
 # 原图（png / img）一律不进仓库：上游授权禁止再分发图片本体。
-# 缩略图（thumbs）随仓库内置（4,344 张 WebP，约 13 MB，重打包自 ai-ref-library-cn，来源与边界见 NOTICE.md）。
+# 缩略图（thumbs）随仓库内置（5,783 张 WebP，约 18 MB，取自 ai-ref-library-cn 与深度站，来源与边界见 NOTICE.md）。
 library/**/png/*
 library/**/img/*
 !library/**/png/.gitkeep

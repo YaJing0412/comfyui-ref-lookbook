@@ -1,10 +1,10 @@
 """Reference assets: thumbs 随仓库内置，原图按“本地优先 → 上游取一次并缓存”获取。
 
-三个图库共用根目录 library/，每个库一个同名子目录，内部结构完全一致：
-  library/{costume,pose,face}/{thumbs,png,img}
+四个图库共用根目录 library/，每个库一个同名子目录，内部结构完全一致：
+  library/{costume,pose,face,depth}/{thumbs,png,img}
 
-仓库随包发行缩略图（thumbs，4,344 张 WebP，约 13 MB，原样取自上游仓库
-sleepy-zone/ai-ref-library-cn 的内嵌缩略图，未修改内容）：
+仓库随包发行缩略图（thumbs，5,783 张 WebP，约 18 MB：服装 / 姿势 / 脸部三库原样取自上游仓库
+sleepy-zone/ai-ref-library-cn 的内嵌缩略图，深度库取自深度站缩略图并转 360 px WebP，画面均未改）：
   * 图库界面与节点预览读内置缩略图，离线开箱可览；
   * 原图（png）与全尺寸预览（img）不进仓库：节点出图或看大图时按
     “本地优先 → 上游下载并缓存到 library/{库}/png/”的顺序取，用过的原图落盘后完全离线；
@@ -42,6 +42,11 @@ LIBRARIES = {
              'site': 'https://ai-portrait-gallery.pages.dev/',
              'origin': 'https://ai-portrait-gallery.pages.dev/img/full/{stem}.png',
              'thumb': 'https://ai-portrait-gallery.pages.dev/img/thumb/{stem}.webp'},
+    # 深度姿势：与姿势库同一批 288 个姿势 / 1439 个文件名，只是换了域名与图片内容。
+    'depth': {'label': '深度姿势', 'index': 'depth-zh.json', 'meta': 'meta-depth.json', 'base': 'depth',
+              'site': 'https://ai-pose-depth-gallery.pages.dev/',
+              'origin': 'https://ai-pose-depth-gallery.pages.dev/img/{stem}.png',
+              'thumb': 'https://ai-pose-depth-gallery.pages.dev/thumbs/{stem}.jpg'},
 }
 DEFAULT_LIBRARY = 'costume'
 
@@ -50,10 +55,14 @@ OFFLINE_ENV = 'COMFYUI_REF_LOOKBOOK_OFFLINE'
 TIMEOUT = float(os.environ.get('COMFYUI_REF_LOOKBOOK_TIMEOUT', '60'))
 USER_AGENT = 'comfyui-ref-lookbook/1.0 (+https://github.com/)'
 _MAGIC = {'.png': b'\x89PNG\r\n\x1a\n', '.webp': b'RIFF', '.jpg': b'\xff\xd8\xff'}
-# 图库一屏会同时请求几十张缩略图、连翻大图也会连续触发原图获取，都必须限并发：
-# 上游授权禁止批量自动抓取，这里把节点当普通浏览者，不给源站造成被抓取的印象。
+# 图库一屏会同时请求几十张缩略图、连翻大图也会连续触发原图获取，都必须限并发，
+# 免得上百个请求同时打过去把源站和自己都拖垮。
+# 原图并发默认 12：实测源站在 12 路才到吞吐拐点（1 路 0.6 张/秒、12 路 4.9 张/秒，
+# 20 路与 12 路持平），单张约 90 KB，12 路合计不到 0.5 MB/s，属于普通浏览的量级。
+ORIGIN_ENV = 'COMFYUI_REF_LOOKBOOK_ORIGIN_SLOTS'
+ORIGIN_SLOTS = max(1, min(32, int(os.environ.get(ORIGIN_ENV, '12'))))
 _thumb_slots = threading.BoundedSemaphore(max(1, THUMB_WORKERS))
-_origin_slots = threading.BoundedSemaphore(3)
+_origin_slots = threading.BoundedSemaphore(ORIGIN_SLOTS)
 _locks = {}
 _locks_guard = threading.Lock()
 

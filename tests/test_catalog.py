@@ -100,7 +100,7 @@ class PoseLibraryTests(unittest.TestCase):
             (catalog.LIBRARY / f'data/{library}-zh.json').write_text(json.dumps([other]), encoding='utf-8')
             for kind in catalog.FIELDS:
                 name = 'FACE-0001.png' if kind == 'png' else 'FACE-0001.webp'
-                # 三库都在同名子目录下，没有任何库平铺在 library/ 根
+                # 各库都在同名子目录下，没有任何库平铺在 library/ 根
                 (catalog.LIBRARY / library / kind / name).write_bytes(b'x')
         clear()
         for library in ('costume', 'face'):

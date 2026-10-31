@@ -1,7 +1,7 @@
 [project]
 name = "comfyui-ref-lookbook"
 version = "1.0.0"
-description = "Pose + face + costume reference gallery for ComfyUI. Ships index and bundled thumbnails; originals are fetched from their authors' sites on demand."
+description = "Pose + face + costume + depth reference gallery for ComfyUI. Ships index and bundled thumbnails; originals are fetched from their authors' sites on demand."
 requires-python = ">=3.10"
 dependencies = ["Pillow", "numpy", "torch", "aiohttp"]
 license = { text = "MIT (code and example workflows only; reference images retain upstream rights)" }
@@ -11,5 +11,5 @@ Repository = "https://github.com/YaJing0412/comfyui-ref-lookbook"
 
 [tool.comfy]
 PublisherId = ""
-DisplayName = "Reference Gallery 服装 · 姿势 · 脸部"
+DisplayName = "Reference Gallery 服装 · 姿势 · 脸部 · 深度姿势"
 Icon = ""

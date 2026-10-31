@@ -35,6 +35,8 @@ LoRA 是 AHEKOT 的 VNCCS PoseStudio Qwen Image 2.1 v2.0：[Civitai](https://civ
 
 参数：25 步、CFG 1、euler/simple、种子固定 `20261029`、1024 长边、LoRA 强度 1。
 
+想让模型按「深度体积」而不是线稿控姿态，把 `Pose Gallery` 换成 `Depth Gallery` 即可：两者编号一一对应（`POS-SEXY-P031` → `DEP-SEXY-P031`），输出就是灰度深度图，接 ControlNet depth 时不用再加预处理器，其余接线不动。
+
 画布总览（点开看大图）：左侧三路图库 + 顶部自上传照片，中间拼提示词与采样，右侧出成图和对比图；整排变暗的是当前不生效的备用路径，由 `Fast Muter` 切换。
 
 ![工作流总览](assets/ui/workflow-overview.jpg)

@@ -1,7 +1,7 @@
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
 
-// 三个自有图库节点
+// 四个自有图库节点
 const LIBRARIES = {
   CostumeGallery: {
     library: "costume",
@@ -22,11 +22,18 @@ const LIBRARIES = {
     label: "脸部",
     button: "浏览脸部图库 · 特写 / 造型 / 发型",
   },
+  DepthGallery: {
+    library: "depth",
+    idWidget: "depth_id",
+    angleWidget: "angle",
+    label: "深度姿势",
+    button: "浏览深度姿势图库 · 288 个动作 / 五个机位",
+  },
 };
 
 let activeDialog = null;
 
-// 三个节点与「任意加载图像节点」共用同一个选择器：图库页里可以随时切库。
+// 四个节点与「任意加载图像节点」共用同一个选择器：图库页里可以随时切库。
 function openGalleryDialog({ library, title, onSelect }) {
   activeDialog?.close();
   let frame = null;

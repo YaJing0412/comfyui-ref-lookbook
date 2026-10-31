@@ -12,9 +12,10 @@ from aiohttp import web
 from server import PromptServer
 from .catalog import (ANGLES, LIBRARIES, OFFLINE_ENV, ROOT, asset, asset_by_id, describe, ensure_original,
                       item, local_path, meta, missing_originals, offline, pick, records, site)
+from . import bulk
 
 class _GalleryNode:
-    """三个图库共用同一套加载逻辑，差异只在索引、控件名与返回值命名。"""
+    """四个图库共用同一套加载逻辑，差异只在索引、控件名与返回值命名。"""
 
     LIBRARY = 'costume'
     ID_WIDGET = 'costume_id'
@@ -116,6 +117,22 @@ class FaceGallery(_GalleryNode):
         return self._load(**values)
 
 
+class DepthGallery(_GalleryNode):
+    """深度姿势：与姿势库同一批 288 个姿势、同样五个机位，灰度表示远近，适合 ControlNet depth。"""
+
+    LIBRARY = 'depth'
+    ID_WIDGET = 'depth_id'
+    DEFAULT_ID = 'DEP-SEXY-P001'
+    FUNCTION = 'load_depth'
+    ANGLE = True
+    ID_TOOLTIP = '点击浏览深度姿势图库，按系列、动作或编号搜索，每个姿势含五个机位。'
+    RETURN_NAMES = ('image', 'width', 'height', 'depth_id', 'description', 'description_ja')
+    DESCRIPTION = '深度姿势图库：288 个姿势 × 5 个机位（1,439 张），灰度深度图，可直接接 ControlNet depth。'
+
+    def load_depth(self, **values):
+        return self._load(**values)
+
+
 routes = PromptServer.instance.routes
 
 @routes.get('/ref_lookbook/catalog')
@@ -214,6 +231,38 @@ async def import_route(request):
     return web.json_response({'name': name, 'library': library, 'id': item_id, 'angle': angle,
                               'bytes': source.stat().st_size})
 
+@routes.get('/ref_lookbook/fetch-all')
+async def fetch_all_plan_route(request):
+    """整库下载前的预估：缺多少张、大概多大、存到哪、磁盘还剩多少。"""
+    return web.json_response(await asyncio.to_thread(bulk.plan))
+
+
+@routes.post('/ref_lookbook/fetch-all/start')
+async def fetch_all_start_route(request):
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+    libraries = payload.get('libraries') if isinstance(payload, dict) else None
+    try:
+        job = await asyncio.to_thread(bulk.start, libraries)
+    except ValueError as exc:
+        return web.json_response({'error': str(exc)}, status=400)
+    except RuntimeError as exc:
+        return web.json_response({'error': str(exc)}, status=409)
+    return web.json_response({'job': job})
+
+
+@routes.get('/ref_lookbook/fetch-all/status')
+async def fetch_all_status_route(request):
+    return web.json_response(bulk.status())
+
+
+@routes.post('/ref_lookbook/fetch-all/stop')
+async def fetch_all_stop_route(request):
+    return web.json_response(bulk.cancel())
+
+
 @routes.get('/ref_lookbook/status')
 async def status_route(request):
     """自检：各库记录数、缩略图与原图的本机缓存情况。"""
@@ -246,11 +295,13 @@ async def web_route(request):
 async def gallery_route(request):
     return web.FileResponse(ROOT / 'web' / 'gallery.html', headers={'Cache-Control': 'no-cache'})
 
-NODE_CLASS_MAPPINGS = {'CostumeGallery': CostumeGallery, 'PoseGallery': PoseGallery, 'FaceGallery': FaceGallery}
+NODE_CLASS_MAPPINGS = {'CostumeGallery': CostumeGallery, 'PoseGallery': PoseGallery, 'FaceGallery': FaceGallery,
+                       'DepthGallery': DepthGallery}
 NODE_DISPLAY_NAME_MAPPINGS = {
     'CostumeGallery': 'Costume Gallery 服装图库',
     'PoseGallery': 'Pose Gallery 姿势图库',
     'FaceGallery': 'Face Gallery 脸部图库',
+    'DepthGallery': 'Depth Gallery 深度姿势图库',
 }
 WEB_DIRECTORY = './web'
 __all__ = ['NODE_CLASS_MAPPINGS', 'NODE_DISPLAY_NAME_MAPPINGS', 'WEB_DIRECTORY']

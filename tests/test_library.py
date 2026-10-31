@@ -3,7 +3,8 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1] / 'library'
-LIBS = {'costume': ('costume-zh.json', 1407), 'pose': ('pose-zh.json', 288), 'face': ('face-zh.json', 1498)}
+LIBS = {'costume': ('costume-zh.json', 1407), 'pose': ('pose-zh.json', 288), 'face': ('face-zh.json', 1498),
+        'depth': ('depth-zh.json', 288)}
 FIELDS = ('缩略图', '预览图', '原图')
 
 
@@ -61,6 +62,18 @@ class LibraryIndexTests(unittest.TestCase):
                 self.assertIn(row['封面'], row['缩略图'].values())
                 total += len(row['视角'])
         self.assertEqual(total, 1439)
+
+    def test_depth_mirrors_pose_exactly(self):
+        """深度库是姿势库的同一批图：文件名、视角、编号必须逐条对齐，否则 ControlNet 会配错。"""
+        pose = json.loads((ROOT / 'data/pose-zh.json').read_text(encoding='utf-8'))
+        depth = json.loads((ROOT / 'data/depth-zh.json').read_text(encoding='utf-8'))
+        self.assertEqual(len(pose), len(depth))
+        for p_row, d_row in zip(pose, depth):
+            with self.subTest(id=p_row['id']):
+                self.assertEqual(d_row['id'], p_row['id'].replace('POS-', 'DEP-', 1))
+                self.assertEqual(list(d_row['原图']), list(p_row['原图']))
+                for angle, rel in p_row['原图'].items():
+                    self.assertEqual(d_row['原图'][angle], rel.replace('pose/', 'depth/', 1))
 
     def test_face_ids_are_sequential_and_keep_source_id(self):
         rows = json.loads((ROOT / 'data/face-zh.json').read_text(encoding='utf-8'))

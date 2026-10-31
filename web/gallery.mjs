@@ -23,6 +23,13 @@ const LIBS = {
     placeholder: '试试 短发、长发、造型 或 FACE-0001',
     source: 'https://ai-portrait-gallery.pages.dev/',
   },
+  depth: {
+    label: '深度姿势', unit: '个', note: '深度姿势档案',
+    headline: '把姿势，变成深度控制。',
+    blurb: '同一批 288 个姿势的灰度深度图，每个动作五个机位。<br>直接接 ControlNet depth，姿态还原更稳。',
+    placeholder: '试试 站立、坐姿、双人 或 DEP-SEXY-P001',
+    source: 'https://ai-pose-depth-gallery.pages.dev/',
+  },
 };
 
 const requested = new URLSearchParams(location.search).get('lib');
@@ -296,7 +303,7 @@ function openDeepLink() {
 
 function applyLibraryChrome() {
   document.body.dataset.lib = lib;
-  document.title = `${config.label} · AI 参考图库｜服装 · 姿势 · 脸部`;
+  document.title = `${config.label} · AI 参考图库｜服装 · 姿势 · 脸部 · 深度姿势`;
   $('headline').innerHTML = config.headline;
   $('blurb').innerHTML = config.blurb;
   $('note-label').textContent = config.note;
@@ -334,6 +341,187 @@ async function init() {
   }
 }
 init();
+
+/* ---------- 整库原图下载 ----------
+   入口只在右上角，使用指南里故意不写，留给用户自己发现。
+   任务跑在 ComfyUI 进程里的后台线程，网页关掉也会继续；只有关掉 ComfyUI 才中断，
+   下好的图都留在 library/<库>/png/，再点一次会跳过已存在的接着补。 */
+const fetchState = { timer: 0, settled: false };
+
+const fmtSize = (bytes) => {
+  if (!Number.isFinite(bytes) || bytes <= 0) return '0 MB';
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let value = bytes, index = 0;
+  while (value >= 1024 && index < units.length - 1) { value /= 1024; index += 1; }
+  return `${index < 2 || value >= 100 ? Math.round(value) : value.toFixed(1)} ${units[index]}`;
+};
+
+const fmtSpan = (seconds) => {
+  if (!Number.isFinite(seconds) || seconds <= 0) return '—';
+  const total = Math.round(seconds);
+  if (total < 60) return `${total} 秒`;
+  if (total < 3600) return `${Math.round(total / 60)} 分钟`;
+  return `${Math.floor(total / 3600)} 小时 ${Math.round((total % 3600) / 60)} 分`;
+};
+
+async function fetchStatusJson() {
+  try {
+    const response = await fetch('fetch-all/status');
+    return response.ok ? await response.json() : null;
+  } catch { return null; }
+}
+
+function renderPlan(plan) {
+  const enough = plan.free_bytes == null || plan.free_bytes > plan.estimated_bytes * 1.1;
+  $('fetch-plan').innerHTML = plan.missing
+    ? `本机还缺 <strong>${plan.missing.toLocaleString()}</strong> 张原图，预计占用 <strong>${fmtSize(plan.estimated_bytes)}</strong>。`
+      + `<br>保存到 <code>${plan.root}</code> 下各库的 <code>png/</code>；磁盘当前可用 `
+      + `<strong>${plan.free_bytes == null ? '未知' : fmtSize(plan.free_bytes)}</strong>。`
+    : '四个图库的原图本机都已经有了，不需要再下载。';
+
+  $('fetch-libs').replaceChildren(...Object.entries(plan.libraries).map(([key, info]) => {
+    const li = element('li');
+    const box = document.createElement('input');
+    box.type = 'checkbox'; box.value = key; box.id = `fetch-lib-${key}`;
+    box.checked = info.missing > 0; box.disabled = info.missing === 0;
+    const label = element('label');
+    label.htmlFor = box.id;
+    label.append(box, element('strong', info.label),
+      element('span', info.missing
+        ? `缺 ${info.missing.toLocaleString()} 张 · 约 ${fmtSize(info.estimated_bytes)}`
+        : `已齐全 ${info.have.toLocaleString()} 张`, 'fetch-count'));
+    li.append(label);
+    return li;
+  }));
+
+  const note = [];
+  if (plan.missing) {
+    note.push('下载期间请保持 ComfyUI 运行、不要关闭本窗口；中途停下或退出程序都不会弄坏已下好的图，再点一次会接着补。');
+    note.push(`按 ${plan.workers} 路并行抓取，进度条会显示实时剩余时间。`);
+    if (!enough) note.push('磁盘剩余空间可能不够，建议先清理再开始。');
+  } else {
+    note.push('提示：下载过的图会被节点和弹窗直接复用，之后完全离线。');
+  }
+  $('fetch-warn').textContent = note.join('');
+  $('fetch-start').disabled = !plan.missing || plan.offline || !enough;
+  $('fetch-start').textContent = plan.missing ? '开始下载' : '无需下载';
+}
+
+function renderProgress(job) {
+  if (!job || !job.total) { $('fetch-progress').hidden = true; return; }
+  const running = Boolean(job.running);
+  const percent = Math.min(100, Math.round(((job.done + job.failed) / job.total) * 100));
+  const bar = $('fetch-bar');
+  bar.style.width = `${percent}%`;
+  bar.dataset.state = running ? 'running' : (job.cancelled ? 'stopped' : 'done');
+  $('fetch-progress').hidden = false;
+
+  const head = running
+    ? `已下载 ${job.done.toLocaleString()} / ${job.total.toLocaleString()} 张`
+    : job.cancelled ? `已停止，本次下载 ${job.done.toLocaleString()} 张`
+      : `已完成，共下载 ${job.done.toLocaleString()} 张`;
+  const parts = [head, `占 ${fmtSize(job.bytes)}`, `用时 ${fmtSpan(job.elapsed)}`];
+  if (running && job.eta) parts.push(`约剩 ${fmtSpan(job.eta)}`);
+  if (job.failed) parts.push(`失败 ${job.failed} 张，可再点一次重试`);
+  $('fetch-status').textContent = parts.join(' · ');
+  $('fetch-errors').textContent = (job.errors || []).slice(0, 3)
+    .map((entry) => `${String(entry.file).split('/').pop()}：${entry.error}`).join('　');
+  $('fetch-start').hidden = running;
+  $('fetch-stop').hidden = !running;
+}
+
+function syncFetchButton(job) {
+  const button = $('fetch-all');
+  if (job?.running && job.total) {
+    const percent = Math.min(100, Math.round(((job.done + job.failed) / job.total) * 100));
+    button.textContent = `下载中 ${percent}%`;
+    button.setAttribute('aria-busy', 'true');
+  } else {
+    button.textContent = '下载全部原图';
+    button.removeAttribute('aria-busy');
+  }
+}
+
+async function loadPlan() {
+  $('fetch-plan').textContent = '正在统计本机缺少的原图…';
+  $('fetch-libs').replaceChildren();
+  $('fetch-start').disabled = true;
+  $('fetch-start').textContent = '开始下载';
+  try {
+    const response = await fetch('fetch-all');
+    const plan = await response.json();
+    if (plan?.error) throw new Error(plan.error);
+    renderPlan(plan);
+  } catch (error) {
+    $('fetch-plan').textContent = '统计失败，请稍后刷新页面重试。';
+    $('fetch-warn').textContent = String(error?.message || error);
+  }
+}
+
+async function pollFetch() {
+  clearTimeout(fetchState.timer);
+  const job = await fetchStatusJson();
+  if (job) {
+    if ($('fetch-dialog').open) renderProgress(job);
+    syncFetchButton(job);
+    if (!job.running && job.total && !fetchState.settled) {
+      fetchState.settled = true;
+      if ($('fetch-dialog').open) await loadPlan();
+      return;
+    }
+  }
+  if (job?.running) fetchState.timer = setTimeout(pollFetch, 1200);
+}
+
+$('fetch-all').addEventListener('click', async () => {
+  if (!$('fetch-dialog').open) $('fetch-dialog').showModal();
+  const job = await fetchStatusJson();
+  if (job?.running) {
+    $('fetch-plan').textContent = '正在下载原图，进度如下。';
+    $('fetch-warn').textContent = '下载期间请保持 ComfyUI 运行；关闭这个窗口不影响下载，退出程序才会停。'
+      + '已下好的都留着，下次再点接着补。';
+    renderProgress(job); syncFetchButton(job); pollFetch(); return;
+  }
+  await loadPlan();
+  pollFetch();
+});
+
+$('fetch-start').addEventListener('click', async () => {
+  const libraries = [...$('fetch-libs').querySelectorAll('input[type=checkbox]')]
+    .filter((box) => box.checked && !box.disabled).map((box) => box.value);
+  if (!libraries.length) { $('fetch-warn').textContent = '至少选择要下载的图库。'; return; }
+  const button = $('fetch-start');
+  button.disabled = true;
+  button.textContent = '正在启动…';
+  fetchState.settled = false;
+  try {
+    const response = await fetch('fetch-all/start', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ libraries }),
+    });
+    const payload = await response.json();
+    if (!response.ok || payload?.error) throw new Error(payload?.error || `HTTP ${response.status}`);
+    renderProgress(payload.job);
+    syncFetchButton(payload.job);
+    pollFetch();
+  } catch (error) {
+    $('fetch-warn').textContent = `启动失败：${error?.message || error}`;
+    button.disabled = false;
+    button.textContent = '开始下载';
+  }
+});
+
+$('fetch-stop').addEventListener('click', async () => {
+  $('fetch-stop').disabled = true;
+  $('fetch-stop').textContent = '正在停止…';
+  try { await fetch('fetch-all/stop', { method: 'POST' }); } catch { /* 停不下来也没关系，下一轮再看 */ }
+  $('fetch-stop').disabled = false;
+  $('fetch-stop').textContent = '停止';
+  pollFetch();
+});
+
+// 页面一打开先看一眼有没有正在跑的任务，有就让右上角按钮直接显示进度
+fetchStatusJson().then((job) => { if (job?.running) { syncFetchButton(job); pollFetch(); } });
 
 $('use-item').addEventListener('click', () => {
   const row = filtered[current];

@@ -94,18 +94,7 @@ LoRA 是 AHEKOT 的 VNCCS PoseStudio Qwen Image 2.1 v2.0：[Civitai](https://civ
 
 默认只按单张取图：只有「浏览大图」和「节点出图」会取原图，共用 `library/<库>/png/` 缓存，任一处取过另一处直接命中。并发受限（缩略图 8、原图 12），同一张串行——12 是实测的吞吐拐点，再高没有收益，也不会把源站拖垮。
 
-### 整库下载
-
-想一次把某个库的原图都攒到本机，用弹窗右上角的「下载全部原图」：
-
-1. 先点开看预估——每个库还差几张、大概占多少空间、目标盘还剩多少，确认了才开始。
-2. 可按库勾选，不选就是全下；下载跑在后台，进度实时刷新，随时能停。
-3. 停下、甚至关掉 ComfyUI 都不会弄坏已下好的图，再点一次是续传，已在本机的直接跳过。
-4. 下好的原图与单张取图共用同一份缓存，之后完全离线，一次网络请求都不会发。
-
-实现见 `bulk.py`，走 `ref_lookbook/fetch-all` 这组接口；和单张取图共用同一个并发信号量，不会把源站排成无间隔请求。
-
-想彻底离线而不下载：按 `library/data/*-zh.json` 的「原图」字段自己放文件到 `library/{costume,pose,face,depth}/png/`，再设 `COMFYUI_REF_LOOKBOOK_OFFLINE=1`。
+想完全离线：按 `library/data/*-zh.json` 的「原图」字段自己放文件到 `library/{costume,pose,face,depth}/png/`，再设 `COMFYUI_REF_LOOKBOOK_OFFLINE=1`。
 
 ## 目录结构
 
@@ -136,7 +125,6 @@ comfyui-ref-lookbook/
 | `COMFYUI_REF_LOOKBOOK_THUMB_WIDTH` | `360` | 缩略图缓存宽度 |
 | `COMFYUI_REF_LOOKBOOK_THUMB_WORKERS` | `8` | 缩略图并发上限，别调太高 |
 | `COMFYUI_REF_LOOKBOOK_ORIGIN_SLOTS` | `12` | 原图并发上限（1–32）。12 是实测吞吐拐点，单张约 1.5 秒，再高没有收益 |
-| `COMFYUI_REF_LOOKBOOK_FETCH_WORKERS` | 同上 | 整库下载的并发，默认跟随原图上限；两边不一致只会让多出的线程排队 |
 
 ## 素材来源与许可
 
@@ -163,7 +151,7 @@ comfyui-ref-lookbook/
 
 ## 合规边界
 
-- **原图与全尺寸预览不分发**（`library/**/{png,img}` 已进 `.gitignore`），运行时按单张取到你自己机器上；不做全库预取、不做批量导出。
+- **原图与全尺寸预览不分发**（`library/**/{png,img}` 已进 `.gitignore`），运行时按单张取到你自己机器上，没有任何后台自动预取。
 - **缩略图随仓库内置属已知取舍**：上游「画像データそのもの（元サイズ・加工後を含む）の再配布は禁止」按字面涵盖缩略图，内置超出明示授权。权利人提出异议即移出，功能不受影响（见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)）。
 - 二次分发、打包合集、在线服务请自行取得原作者授权，本仓库不是授权凭证。
 - 清理本地缓存：删 `library/{costume,pose,face}` 下的 `png`/`img` 即可（保留 `.gitkeep`）。

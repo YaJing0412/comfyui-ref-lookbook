@@ -4,7 +4,8 @@ __pycache__/
 .DS_Store
 
 # 原图（png / img）一律不进仓库：上游授权禁止再分发图片本体。
-# 缩略图（thumbs）随仓库内置（5,783 张 WebP，约 18 MB，取自 ai-ref-library-cn 与深度站，来源与边界见 NOTICE.md）。
+# 缩略图（thumbs）随仓库内置（8,411 张 WebP，约 59 MB，取自 ai-ref-library-cn、深度站、CharaDB 与动画服装站，
+# 来源与边界见 NOTICE.md）。
 library/**/png/*
 library/**/img/*
 !library/**/png/.gitkeep
@@ -12,3 +13,9 @@ library/**/img/*
 
 # 下载中断留下的临时文件
 *.part
+
+# 实机验证脚本产出的截图与实例日志
+tools/.verify-shots/
+
+# 独立 HTTP 模式「导入」的落盘目录
+exports/

@@ -26,6 +26,25 @@ git clone https://github.com/YaJing0412/comfyui-ref-lookbook.git
 
 重启 ComfyUI，浏览器 `Ctrl+Shift+R`。无额外依赖（用 ComfyUI 自带的 Pillow / aiohttp）。
 
+## 不开 ComfyUI 单独用（HTTP 模式）
+
+插件根目录自带一个零依赖的独立服务（只用 Python 标准库），浏览体验与 ComfyUI 内完全一致：
+
+```bash
+python server.py            # 打开 http://127.0.0.1:8180/ref_lookbook/gallery
+```
+
+Windows 下直接双击 `start_gallery.bat` 也行（没装 Python 时会提示）。
+
+| 参数 | 默认 | 说明 |
+| --- | --- | --- |
+| `--port` | `8180` | 监听端口 |
+| `--host` | `127.0.0.1` | 监听地址；改 `0.0.0.0` 会对局域网开放，启动时打印安全提醒 |
+| `--library` | 插件内 `library/` | 换图库根目录（需含 `data/` 与六个库子目录） |
+| `--export-dir` | 插件内 `exports/` | 「导入」落盘目录（独立模式没有 ComfyUI 的 `input/`，改存这里） |
+
+与 ComfyUI 模式共用同一份 `library/`：独立模式下看过的大图、节点里出过图的原图，都落在同一个 `library/<库>/png/`，两种启动方式互相通用。`GET /ref_lookbook/status` 可自检各库计数与缓存情况。
+
 ## 用法
 
 1. 添加节点：`image → Reference Gallery → 服装 / 服装动画 / 姿势 / 脸部 / 深度姿势 / 二次元图库`。
@@ -117,9 +136,11 @@ comfyui-ref-lookbook/
 │   ├── anime/{thumbs,png,img}/
 │   └── SOURCE.json      # 素材版本、数量与上游地址模板
 ├── web/                 # ComfyUI 扩展、六库统一弹窗界面
+├── server.py            # 独立 HTTP 服务（不开 ComfyUI 也能浏览）
+├── start_gallery.bat    # Windows 双击启动
 ├── example_workflows/   # 示例工作流 + 说明 + 效果图
 ├── licenses/            # 上游参考项目的许可原文
-└── tests/               # 60 个 Python 测试 + 8 个前端测试
+└── tests/               # 73 个 Python 测试 + 8 个前端测试
 ```
 
 `<库>/thumbs/` 随仓库内置（8,411 张 WebP，离线开箱可浏览）；`<库>/png/`、`<库>/img/` 进 `.gitignore`，只留 `.gitkeep` 占位。原图一律运行时获取：你在弹窗里看过、或在节点上出过图的那张，就落进对应目录，之后不再下载。
@@ -175,7 +196,7 @@ node --test tests/test_preview.mjs
 node --check web/ref_gallery.js && node --check web/gallery.mjs
 ```
 
-60 个 Python 测试覆盖索引完整性、深度图与姿势图逐条对齐、二次元线稿与彩图配对、服装动画与服装编号重合但路径互不干扰、缩略图逐条在库、路径穿越与越库访问拒绝、按视角 / 形态取图、上游地址模板（含线稿的 `line/` 路径）、缓存命中、离线提示、节点预览 URL 与错误回退、按需缓存的 remote 参数；8 个前端测试覆盖预览取图、视角联动、缩略图占位与旧请求不覆盖新选择。
+73 个 Python 测试覆盖索引完整性、深度图与姿势图逐条对齐、二次元线稿与彩图配对、服装动画与服装编号重合但路径互不干扰、缩略图逐条在库、路径穿越与越库访问拒绝、按视角 / 形态取图、上游地址模板（含线稿的 `line/` 路径）、缓存命中、离线提示、节点预览 URL 与错误回退、按需缓存的 remote 参数，外加独立 HTTP 服务的路由、白名单与穿越防护；8 个前端测试覆盖预览取图、视角联动、缩略图占位与旧请求不覆盖新选择。
 
 ## 权利联系
 

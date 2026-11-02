@@ -48,7 +48,7 @@ let records = [], filtered = [], category = '', subcategory = '', angle = '';
 let shown = 0, current = 0, selectedId = '';
 // 每次翻页自增：异步加载的原图回来时用它判断用户是否已经翻走，避免旧图盖新图。
 let detailToken = 0;
-let originTemplate = '', originSite = '', offlineOnly = false;
+let originTemplate = '', originLineTemplate = '', originSite = '', offlineOnly = false;
 const PAGE = 60;
 
 const isMap = (value) => value !== null && typeof value === 'object';
@@ -97,10 +97,14 @@ function withUrls(row) {
 }
 
 // 原图不进仓库：按文件名拼上游地址，本地缺图时直接向作者站点取，个人保存不额外授权也不再分发。
+// 二次元线稿在源站是另一条路径（line/<源ID>.png），本地名带 _line 后缀，拼之前要去掉。
 function remoteOf(value) {
   if (isMap(value)) return Object.fromEntries(Object.entries(value).map(([key, path]) => [key, remoteOf(path)]));
   if (typeof value !== 'string' || !value || !originTemplate) return '';
-  const stem = value.split('/').at(-1).replace(/\.[^.]+$/, '');
+  let stem = value.split('/').at(-1).replace(/\.[^.]+$/, '');
+  if (originLineTemplate && stem.endsWith('_line')) {
+    return originLineTemplate.replace('{stem}', encodeURIComponent(stem.slice(0, -5)));
+  }
   return originTemplate.replace('{stem}', encodeURIComponent(stem));
 }
 
@@ -297,13 +301,15 @@ for (const dialog of [$('viewer'), $('guide')]) dialog.addEventListener('click',
   if (e.target === dialog && (e.clientX < box.left || e.clientX > box.right || e.clientY < box.top || e.clientY > box.bottom)) dialog.close();
 });
 
-// ?lib=pose&id=POS-SEXY-P001 直接打开某个素材，方便分享与排查
+// ?lib=pose&id=POS-SEXY-P001&angle=斜45° 直接打开某个素材的某个形态，方便分享与排查
 function openDeepLink() {
   const wanted = new URLSearchParams(location.search).get('id');
   if (!wanted) return;
   const index = filtered.findIndex((row) => row.id === wanted);
   if (index < 0) return;
   current = index;
+  const wantedAngle = new URLSearchParams(location.search).get('angle');
+  if (wantedAngle && angleKeys(filtered[current]).includes(wantedAngle)) angle = wantedAngle;
   showDetail();
   $('viewer').showModal();
 }
@@ -332,6 +338,7 @@ async function init() {
     const rows = Array.isArray(payload) ? payload : payload.records;
     if (!Array.isArray(rows) || !rows.length) throw new Error('数据为空');
     originTemplate = payload?.origin?.template || '';
+  originLineTemplate = payload?.origin?.line_template || '';
     originSite = payload?.origin?.site || config.source;
     offlineOnly = Boolean(payload?.origin?.offline);
     if (offlineOnly) $('offline-note').hidden = false;

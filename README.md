@@ -30,7 +30,7 @@ git clone https://github.com/YaJing0412/comfyui-ref-lookbook.git
 3. 点卡片看大图，点「使用此素材 → ComfyUI」把编号写回节点（姿势同时写 `angle`，二次元同时写 `variant`）。
 4. 姿势与深度姿势可在图库和节点上切换视角：正面 / 俯视 / 仰视 / 侧面 / 斜 45°；二次元库可切换彩图 / 线稿（线稿只覆盖姿势组）。
 5. 任意原生「加载图像」节点（如 `Load Image`）也能调这个图库：选中后原图落到 `ComfyUI/input/ref_<编号>.png` 并自动填进该节点的图像控件，同一素材反复导入只覆盖同一个文件。
-6. 直接开 `?lib=pose&id=POS-SEXY-P001` 可定位到某条素材。
+6. 直接开 `?lib=pose&id=POS-SEXY-P001` 可定位到某条素材；再带 `&angle=斜45°`（二次元用 `&angle=线稿`）能直接切到该形态。
 7. 深度姿势库可以直接接 ControlNet：`DepthGallery` 的 `image` 输出就是灰度深度图，连到 `ControlNetApplyAdvanced` 的 `image` 即可，不需要再加预处理器（图已经是深度图，再过一遍 depth 预处理器等于重复处理）。姿势库与深度姿势库编号一一对应，`POS-SEXY-P031` 对应 `DEP-SEXY-P031`，想要「线稿控姿态」用姿势库、想要「深度控体积」用深度姿势库。
 
 ![图库弹窗](example_workflows/assets/ui/gallery-window.jpg)

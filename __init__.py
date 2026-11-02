@@ -159,7 +159,9 @@ async def _catalog(library):
             'library': library,
             'meta': payload,
             # 前端据此拼原图地址：站点首页 + 原图模板，索引里不落这些字段，换源只改一处。
+            # line_template 只有二次元库有：线稿在源站是另一条路径，且本地名带 _line 后缀。
             'origin': {'site': site(library), 'template': LIBRARIES[library]['origin'],
+                       'line_template': LIBRARIES[library].get('line_origin', ''),
                        'offline': offline(), 'env': OFFLINE_ENV},
             'records': records(library),
         })

@@ -15,6 +15,8 @@ A ComfyUI node pack that turns six public AI-reference libraries (costume / cost
 
 合计 5,828 条记录、8,411 张参考图。六个库互不依赖：可固定脸换装、固定装换脸、只换衣服做对比。深度姿势库与姿势库是同一批 288 个动作、同样文件名，只是内容换成灰度深度图，可直接接 ControlNet depth。二次元库把发型与眼睛、服装、姿势三组混在一个库里（编号前缀 `H` / `O` / `P` 区分），姿势另有线稿版本，适合二次元出图。服装动画库与服装库是同一批分类、同一套编号规则的两版不同画风，各自独立编号、互不补齐，**同一编号在两个库里是两张不同的图**，别指望用编号互相找回。
 
+当前版本 **v1.3.0**。每个版本新增了什么、修了什么，见[更新日志](更新日志.md)。
+
 ## 安装
 
 ```bash
@@ -104,6 +106,7 @@ LoRA 是 AHEKOT 的 VNCCS PoseStudio Qwen Image 2.1 v2.0：[Civitai](https://civ
 
 ```text
 comfyui-ref-lookbook/
+├── 更新日志.md          # 每版新增与修复
 ├── library/
 │   ├── data/            # 六库中文索引、分类与元数据（约 3.3 MB）
 │   ├── costume/{thumbs,png,img}/

@@ -74,6 +74,8 @@ def export_to_file(library, item_id, angle, source, export_dir=None):
 class Handler(BaseHTTPRequestHandler):
     server_version = 'RefLookbook/1.0'
     protocol_version = 'HTTP/1.1'   # 配合 Content-Length 复用连接
+    # 闲置连接 60 秒后回收：防系统休眠唤醒后的半开连接把线程越积越多
+    timeout = 60
 
     def log_message(self, fmt, *args):  # 一行一条，别刷屏
         print(f'[{self.log_date_time_string()}] {fmt % args}')
@@ -157,10 +159,12 @@ class Handler(BaseHTTPRequestHandler):
                 self._import(self._body())
             else:
                 self._json({'error': f'未知的接口：{method} {path}'}, 404)
-        except BrokenPipeError:
-            pass  # 浏览器取消图片加载很常见，不值得一条 traceback
+        except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
+            pass  # 浏览器取消图片加载、提前断开很常见，不值得一条 traceback
         except (ValueError, FileNotFoundError, KeyError) as exc:
             self._json({'error': str(exc) or exc.__class__.__name__}, 404)
+        except OSError:
+            pass  # 写响应时连接已死：同上，静默即可
         except Exception as exc:  # 兜底：别让一个坏请求带死线程
             self._json({'error': f'{exc.__class__.__name__}: {exc}'}, 500)
 
@@ -243,6 +247,26 @@ class Server(ThreadingHTTPServer):
     daemon_threads = True
     allow_reuse_address = True
 
+    def handle_error(self, request, client_address):
+        # 默认实现会打整段 traceback：浏览器掐断连接在这里很常见，一行带过
+        print('一个请求处理线程异常退出（通常是客户端提前断开），服务继续运行。')
+
+
+def _disable_quick_edit():
+    """关掉 Windows 控制台的 QuickEdit：用户鼠标一划窗口就进入选择模式，
+    print 全部阻塞，服务看起来像卡死。关掉后日志永远不堵请求线程。"""
+    if sys.platform != 'win32':
+        return
+    try:
+        import ctypes
+        handle = ctypes.windll.kernel32.GetStdHandle(-10)  # STD_INPUT_HANDLE
+        mode = ctypes.c_uint()
+        if ctypes.windll.kernel32.GetConsoleMode(handle, ctypes.byref(mode)):
+            # ENABLE_QUICK_EDIT_MODE(0x40) 关闭，同时必须带 ENABLE_EXTENDED_FLAGS(0x80)
+            ctypes.windll.kernel32.SetConsoleMode(handle, (mode.value & ~0x0040) | 0x0080)
+    except Exception:
+        pass  # 不在真实控制台里（重定向/服务方式运行）就无所谓
+
 
 def main():
     parser = argparse.ArgumentParser(description='参考图库独立 HTTP 服务')
@@ -251,6 +275,8 @@ def main():
     parser.add_argument('--library', default=None, help='图库根目录（默认插件内 library/）')
     parser.add_argument('--export-dir', default=None, help='「导入」落盘目录（默认插件内 exports/）')
     args = parser.parse_args()
+
+    _disable_quick_edit()
 
     if args.export_dir:
         global EXPORT_DIR
@@ -262,15 +288,27 @@ def main():
         print('  且「整库下载」会以你的 IP 向上游站点批量抓图。确认你了解风险。')
         print('=' * 62)
 
-    httpd = Server((args.host, args.port), Handler)
+    try:
+        httpd = Server((args.host, args.port), Handler)
+    except OSError:
+        print(f'[!] 端口 {args.port} 无法监听：多半已经有一个图库服务在跑（或端口被其他程序占用）。')
+        print('    可以换一个端口启动：python server.py --port 8181')
+        sys.exit(1)
+
     total = sum(len(records(name)) for name in LIBRARIES)
     print(f'参考图库已启动：http://{args.host}:{args.port}/ref_lookbook/gallery')
     print(f'共 {len(LIBRARIES)} 个库、{total:,} 条记录。原图按需从上游取一次并缓存到本机。')
-    print('Ctrl+C 停止。')
+    print('保持这个窗口开着即可；关闭窗口服务就停。Ctrl+C 也可以停止。')
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
         print('\n已停止。')
+    except Exception:
+        # 任何意外都把原因留在窗口里：启动脚本检测到非零退出码会暂停窗口，不至于一闪而过
+        import traceback
+        print('\n服务因异常退出，原因如下：')
+        traceback.print_exc()
+        sys.exit(1)
     finally:
         httpd.server_close()
 

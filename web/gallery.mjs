@@ -119,14 +119,15 @@ function tagText(row) {
   return (row.关键词 || []).join(' · ');
 }
 
-function chipsOf(field) {
-  const counts = new Map([['', records.length]]);
-  records.forEach((row) => { if (row[field]) counts.set(row[field], (counts.get(row[field]) || 0) + 1); });
+function chipsOf(field, scope) {
+  const rows = scope ? records.filter((row) => row.分类 === scope) : records;
+  const counts = new Map([['', rows.length]]);
+  rows.forEach((row) => { if (row[field]) counts.set(row[field], (counts.get(row[field]) || 0) + 1); });
   return counts;
 }
 
-function renderChips(container, field, active, onPick, label) {
-  const counts = chipsOf(field);
+function renderChips(container, field, active, onPick, label, scope) {
+  const counts = chipsOf(field, scope);
   if (counts.size <= 2) { container.replaceChildren(); container.hidden = true; return; }
   container.hidden = false;
   container.replaceChildren(...[...counts].map(([name, count]) => {
@@ -140,7 +141,9 @@ function renderChips(container, field, active, onPick, label) {
 
 function renderCategories() {
   renderChips($('categories'), '分类', category, (name) => { category = name; subcategory = ''; applyFilters(); }, '全部');
-  renderChips($('subcategories'), '分类2', subcategory, (name) => { subcategory = name; applyFilters(); }, '全部');
+  // 二级分类只统计当前一级分类下的记录：否则「发型与眼睛」下混着服装、姿势的子类，
+  // 点了必然交叉为空（分类 + 分类2 不可能同时命中），页面就显示「没有找到匹配的素材」。
+  renderChips($('subcategories'), '分类2', subcategory, (name) => { subcategory = name; applyFilters(); }, '全部', category);
 }
 
 function applyFilters() {

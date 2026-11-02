@@ -1,18 +1,19 @@
 # comfyui-ref-lookbook · 参考图册
 
-ComfyUI 节点包：把姿势、脸、服装、深度姿势、二次元五套公开的 AI 参考素材收进一个图库节点，组合出图。**仓库发行代码、索引与内置缩略图，不含原图本体。**
+ComfyUI 节点包：把服装、服装动画、姿势、脸、深度姿势、二次元六套公开的 AI 参考素材收进一个图库节点，组合出图。**仓库发行代码、索引与内置缩略图，不含原图本体。**
 
-A ComfyUI node pack that turns five public AI-reference libraries (pose / face / costume / depth / anime) into one gallery, so a single image can be composed from all five.
+A ComfyUI node pack that turns six public AI-reference libraries (costume / costume-anime / pose / face / depth / anime) into one gallery, so a single image can be composed from all six.
 
 | 库 | 节点 | 记录 | 图片 | 分类 | 编号 |
 | --- | --- | --- | --- | --- | --- |
 | 服装 | `CostumeGallery` | 1,407 套 | 1,407 张 | 春装 / 夏装 / 秋装 / 冬装 / 内衣 / 派对 / 泳装 / 性感 | `SPR-0001`、`SIN-0007` … |
+| 服装动画 | `CostumeAnimeGallery` | 1,320 套 | 1,320 张 | 与服装同一套 8 个分类，动漫画风 | `SPR-0001`、`SXY-0092` … |
 | 姿势 | `PoseGallery` | 288 个动作 | 1,439 张（每动作 5 机位） | 全身·性感系 / 全身·标准系 / 上半身 / 双人互动 | `POS-SEXY-P001` … |
 | 脸部 | `FaceGallery` | 1,498 张 | 1,498 张 | 脸部特写 / 造型 × 短发 / 中发 / 中长发 / 长发 | `FACE-0001` … |
 | 深度姿势 | `DepthGallery` | 288 个动作 | 1,439 张（每动作 5 机位） | 与姿势库同一批动作，灰度深度图 | `DEP-SEXY-P001` … |
 | 二次元 | `AnimeGallery` | 1,027 组 | 1,308 张（姿势另有线稿） | 发型与眼睛 / 服装 / 姿势 | `ANE-H001`、`ANE-O001`、`ANE-P001` … |
 
-合计 4,508 条记录、7,091 张参考图。五个库互不依赖：可固定脸换装、固定装换脸、只换衣服做对比。深度姿势库与姿势库是同一批 288 个动作、同样文件名，只是内容换成灰度深度图，可直接接 ControlNet depth。二次元库把发型与眼睛、服装、姿势三组混在一个库里（编号前缀 `H` / `O` / `P` 区分），姿势另有线稿版本，适合二次元出图。
+合计 5,828 条记录、8,411 张参考图。六个库互不依赖：可固定脸换装、固定装换脸、只换衣服做对比。深度姿势库与姿势库是同一批 288 个动作、同样文件名，只是内容换成灰度深度图，可直接接 ControlNet depth。二次元库把发型与眼睛、服装、姿势三组混在一个库里（编号前缀 `H` / `O` / `P` 区分），姿势另有线稿版本，适合二次元出图。服装动画库与服装库是同一批分类、同一套编号规则的两版不同画风，各自独立编号、互不补齐，**同一编号在两个库里是两张不同的图**，别指望用编号互相找回。
 
 ## 安装
 
@@ -25,11 +26,11 @@ git clone https://github.com/YaJing0412/comfyui-ref-lookbook.git
 
 ## 用法
 
-1. 添加节点：`image → Reference Gallery → 服装 / 姿势 / 脸部 / 深度姿势 / 二次元图库`。
-2. 点「浏览…图库」开弹窗，顶部页签切换五个库；支持一二级分类、中英日关键词与编号搜索（空格分隔按「同时包含」筛选）。点节点上的预览图也能打开。
+1. 添加节点：`image → Reference Gallery → 服装 / 服装动画 / 姿势 / 脸部 / 深度姿势 / 二次元图库`。
+2. 点「浏览…图库」开弹窗，顶部页签切换六个库；支持一二级分类、中英日关键词与编号搜索（空格分隔按「同时包含」筛选）。点节点上的预览图也能打开。
 3. 点卡片看大图，点「使用此素材 → ComfyUI」把编号写回节点（姿势同时写 `angle`，二次元同时写 `variant`）。
 4. 姿势与深度姿势可在图库和节点上切换视角：正面 / 俯视 / 仰视 / 侧面 / 斜 45°；二次元库可切换彩图 / 线稿（线稿只覆盖姿势组）。
-5. 任意原生「加载图像」节点（如 `Load Image`）也能调这个图库：选中后原图落到 `ComfyUI/input/ref_<编号>.png` 并自动填进该节点的图像控件，同一素材反复导入只覆盖同一个文件。
+5. 任意原生「加载图像」节点（如 `Load Image`）也能调这个图库：选中后原图落到 `ComfyUI/input/ref_<编号>.png` 并自动填进该节点的图像控件，同一素材反复导入只覆盖同一个文件。服装动画库因为与服装库共用编号，文件名带库前缀（`ref_anime-SPR-0001.png`），两库同编号素材能同时存在于 `input/`。
 6. 直接开 `?lib=pose&id=POS-SEXY-P001` 可定位到某条素材；再带 `&angle=斜45°`（二次元用 `&angle=线稿`）能直接切到该形态。
 7. 深度姿势库可以直接接 ControlNet：`DepthGallery` 的 `image` 输出就是灰度深度图，连到 `ControlNetApplyAdvanced` 的 `image` 即可，不需要再加预处理器（图已经是深度图，再过一遍 depth 预处理器等于重复处理）。姿势库与深度姿势库编号一一对应，`POS-SEXY-P031` 对应 `DEP-SEXY-P031`，想要「线稿控姿态」用姿势库、想要「深度控体积」用深度姿势库。
 
@@ -39,7 +40,7 @@ git clone https://github.com/YaJing0412/comfyui-ref-lookbook.git
 
 ## 示例工作流
 
-下载 [ref_gallery_combo_qwen21.json](example_workflows/ref_gallery_combo_qwen21.json)（30 KB），拖进 ComfyUI 画布即可。四个库直接组合——姿势给动作与构图、脸给身份与发型、服装给衣服，不需要真人照片；要走 ControlNet 就换深度姿势库，要二次元风格就换二次元库。画布上方的 `Fast Muter` 可一键切到「自上传模式」，用自己的照片当脸，不用改连线。
+下载 [ref_gallery_combo_qwen21.json](example_workflows/ref_gallery_combo_qwen21.json)（30 KB），拖进 ComfyUI 画布即可。几个库直接组合——姿势给动作与构图、脸给身份与发型、服装给衣服，不需要真人照片；要走 ControlNet 就换深度姿势库，要二次元风格就换二次元库，要动漫画风的衣服就在服装动画库与服装库之间挑。画布上方的 `Fast Muter` 可一键切到「自上传模式」，用自己的照片当脸，不用改连线。
 
 [example_workflows/](example_workflows/) 目录里是工作流、使用指南与效果图；[使用指南](example_workflows/ref_gallery_combo_qwen21.md) 讲依赖、参数与脸部来源切换。
 
@@ -76,17 +77,18 @@ LoRA 是 AHEKOT 的 VNCCS PoseStudio Qwen Image 2.1 v2.0：[Civitai](https://civ
 | `description` | STRING | 分类 + 二级分类 + 中文关键词 |
 | `keywords_en` / `description_ja` | STRING | 原始英文关键词 / 原始日文描述 |
 
-姿势与深度姿势节点额外有 `angle` 下拉（默认「正面」），二次元节点有 `variant` 下拉（默认「彩图」）。标签可能不完整，只作检索提示。这五个节点只提供参考图，本身不换装、不换脸。
+姿势与深度姿势节点额外有 `angle` 下拉（默认「正面」），二次元节点有 `variant` 下拉（默认「彩图」）。标签可能不完整，只作检索提示。这六个节点只提供参考图，本身不换装、不换脸。
 
 ## 图片怎么来
 
-**缩略图**（7,091 张 WebP，约 46 MB）随仓库内置：前三个库原样取自 [ai-ref-library-cn](https://github.com/sleepy-zone/ai-ref-library-cn) 的内嵌缩略图（200×250，未改动），深度库取自深度站缩略图并统一转成 360 px WebP，二次元库取自二次元站缩略图并统一转成 360 px WebP。离线可完整浏览。
+**缩略图**（8,411 张 WebP，约 60 MB）随仓库内置：前三个库原样取自 [ai-ref-library-cn](https://github.com/sleepy-zone/ai-ref-library-cn) 的内嵌缩略图（200×250，未改动），深度库与二次元库取自各自源站缩略图并统一转成 360 px WebP，服装动画库源站缩略图本身就是 360×540，原样落盘不再转码。离线可完整浏览。
 
 **原图**不进仓库（体积大，且上游禁止再分发），运行时按素材文件名拼源站地址取一次：
 
 | 库 | 原图地址 |
 | --- | --- |
 | 服装 | `ai-costume-gallery.pages.dev/png/<文件名>.png` |
+| 服装动画 | `ai-costume-anime-gallery.pages.dev/png/<文件名>.png` |
 | 姿势 | `ai-pose-gallery.pages.dev/img/<文件名>.png` |
 | 脸部 | `ai-portrait-gallery.pages.dev/img/full/<文件名>.png` |
 | 深度姿势 | `ai-pose-depth-gallery.pages.dev/img/<文件名>.png` |
@@ -96,33 +98,34 @@ LoRA 是 AHEKOT 的 VNCCS PoseStudio Qwen Image 2.1 v2.0：[Civitai](https://civ
 
 默认只按单张取图：只有「浏览大图」和「节点出图」会取原图，共用 `library/<库>/png/` 缓存，任一处取过另一处直接命中。并发受限（缩略图 8、原图 12），同一张串行——12 是实测的吞吐拐点，再高没有收益，也不会把源站拖垮。
 
-想完全离线：按 `library/data/*-zh.json` 的「原图」字段自己放文件到 `library/{costume,pose,face,depth,anime}/png/`，再设 `COMFYUI_REF_LOOKBOOK_OFFLINE=1`。
+想完全离线：按 `library/data/*-zh.json` 的「原图」字段自己放文件到 `library/{costume,costume-anime,pose,face,depth,anime}/png/`，再设 `COMFYUI_REF_LOOKBOOK_OFFLINE=1`。
 
 ## 目录结构
 
 ```text
 comfyui-ref-lookbook/
 ├── library/
-│   ├── data/            # 五库中文索引、分类与元数据（约 2.6 MB）
+│   ├── data/            # 六库中文索引、分类与元数据（约 3.3 MB）
 │   ├── costume/{thumbs,png,img}/
+│   ├── costume-anime/{thumbs,png,img}/
 │   ├── pose/{thumbs,png,img}/
 │   ├── face/{thumbs,png,img}/
 │   ├── depth/{thumbs,png,img}/
 │   ├── anime/{thumbs,png,img}/
 │   └── SOURCE.json      # 素材版本、数量与上游地址模板
-├── web/                 # ComfyUI 扩展、五库统一弹窗界面
+├── web/                 # ComfyUI 扩展、六库统一弹窗界面
 ├── example_workflows/   # 示例工作流 + 说明 + 效果图
 ├── licenses/            # 上游参考项目的许可原文
-└── tests/               # 57 个 Python 测试 + 8 个前端测试
+└── tests/               # 60 个 Python 测试 + 8 个前端测试
 ```
 
-`<库>/thumbs/` 随仓库内置（7,091 张 WebP，离线开箱可浏览）；`<库>/png/`、`<库>/img/` 进 `.gitignore`，只留 `.gitkeep` 占位。原图一律运行时获取：你在弹窗里看过、或在节点上出过图的那张，就落进对应目录，之后不再下载。
+`<库>/thumbs/` 随仓库内置（8,411 张 WebP，离线开箱可浏览）；`<库>/png/`、`<库>/img/` 进 `.gitignore`，只留 `.gitkeep` 占位。原图一律运行时获取：你在弹窗里看过、或在节点上出过图的那张，就落进对应目录，之后不再下载。
 
 ## 环境变量
 
 | 变量 | 默认 | 作用 |
 | --- | --- | --- |
-| `COMFYUI_REF_LOOKBOOK_LIBRARY` | 节点内 `library/` | 换图库根目录，需含 `data/` 与五个库子目录 |
+| `COMFYUI_REF_LOOKBOOK_LIBRARY` | 节点内 `library/` | 换图库根目录，需含 `data/` 与六个库子目录 |
 | `COMFYUI_REF_LOOKBOOK_OFFLINE` | 未设 | `1` = 只用本地图片，缺图直接提示地址，永不联网 |
 | `COMFYUI_REF_LOOKBOOK_TIMEOUT` | `60` | 单次下载超时（秒） |
 | `COMFYUI_REF_LOOKBOOK_THUMB_WIDTH` | `360` | 缩略图缓存宽度 |
@@ -138,8 +141,9 @@ comfyui-ref-lookbook/
 | 脸部 | [AIモデル顔データベース](https://ai-portrait-gallery.pages.dev/) | あぎ [@agi_aibusi](https://x.com/agi_aibusi) | CC0 | ✅（本仓库仍不分发） |
 | 深度姿势 | [デプスポーズ集 POSE-DB-02](https://ai-pose-depth-gallery.pages.dev/) | ギア [@giaaibusi](https://x.com/giaaibusi) | 与姿势集同条款：可参考使用，禁止再分发图片本体（含加工版） | ❌ |
 | 二次元 | [キャラ組み立てDB CharaDB](https://charadb-2fi.pages.dev/) | たき AI [@taki_auto](https://x.com/taki_auto) | 参考使用；禁止再分发、转载、转售图片本体 | ❌ |
+| 服装动画 | [衣装集 アニメ版 COSTUME-ANIME-DB](https://ai-costume-anime-gallery.pages.dev/) | ギア [@giaaibusi](https://x.com/giaaibusi) | 可商用、可编辑、可参考；禁止再分发、转载、转售图片本体，禁止批量获取，不得用于表现真实人物或未成年人 | ❌ |
 
-五套素材全是 AI 生成，不含真实人物。姿势与脸部的中文标签、动作清单与内置缩略图取自 [sleepy-zone/ai-ref-library-cn](https://github.com/sleepy-zone/ai-ref-library-cn)——一个同样整理这三套素材的中文检索界面，只收录缩略图、不含原图；服装库的中文索引取自 [ai-costume-gallery-zh](https://github.com/wangweihong/ai-costume-gallery-zh)；深度姿势库的索引由姿势库派生、按深度站校对，缩略图取自深度站；二次元库的中文索引与分类取自同一中文项目的 anime 索引（[Deeyu/ai-costume-gallery-zh](https://github.com/Deeyu/ai-costume-gallery-zh)），缩略图取自 CharaDB。
+六套素材全是 AI 生成，不含真实人物。姿势与脸部的中文标签、动作清单与内置缩略图取自 [sleepy-zone/ai-ref-library-cn](https://github.com/sleepy-zone/ai-ref-library-cn)——一个同样整理这三套素材的中文检索界面，只收录缩略图、不含原图；服装库的中文索引取自 [ai-costume-gallery-zh](https://github.com/wangweihong/ai-costume-gallery-zh)；深度姿势库的索引由姿势库派生、按深度站校对，缩略图取自深度站；二次元库与服装动画库的中文索引与分类取自同一中文项目的 anime 索引与 costume-anime 索引（[Deeyu/ai-costume-gallery-zh](https://github.com/Deeyu/ai-costume-gallery-zh)），缩略图分别取自 CharaDB 与动画服装站。
 
 参考项目：
 
@@ -149,7 +153,7 @@ comfyui-ref-lookbook/
 | [wangweihong/comfyui-pose-gallery](https://github.com/wangweihong/comfyui-pose-gallery) | 节点与弹窗的交互方式（MIT，见 [`licenses/`](licenses/)） |
 | [anhao/ai-pose-gallery-zh](https://github.com/anhao/ai-pose-gallery-zh) | 汉化与分类口径的参考 |
 
-本项目独立编写的部分：五库合成一个节点包并统一分类与搜索；节点预览直接画在画布上（不用 DOM 控件，避免布局漂移与溢出）；「本机 → 源站 → 缓存」取图链路、原子写入、文件头校验、离线模式；选中素材可导入任意原生节点。
+本项目独立编写的部分：六库合成一个节点包并统一分类与搜索；节点预览直接画在画布上（不用 DOM 控件，避免布局漂移与溢出）；「本机 → 源站 → 缓存」取图链路、原子写入、文件头校验、离线模式；选中素材可导入任意原生节点。
 
 参考关系不代表上述作者为本项目背书，也不代表他们授权你使用素材。
 
@@ -158,7 +162,7 @@ comfyui-ref-lookbook/
 - **原图与全尺寸预览不分发**（`library/**/{png,img}` 已进 `.gitignore`），运行时按单张取到你自己机器上，没有任何后台自动预取。
 - **缩略图随仓库内置属已知取舍**：上游「画像データそのもの（元サイズ・加工後を含む）の再配布は禁止」按字面涵盖缩略图，内置超出明示授权。权利人提出异议即移出，功能不受影响（见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)）。
 - 二次分发、打包合集、在线服务请自行取得原作者授权，本仓库不是授权凭证。
-- 清理本地缓存：删 `library/{costume,pose,face,depth,anime}` 下的 `png`/`img` 即可（保留 `.gitkeep`）。
+- 清理本地缓存：删 `library/{costume,costume-anime,pose,face,depth,anime}` 下的 `png`/`img` 即可（保留 `.gitkeep`）。
 
 ## 验证
 
@@ -168,7 +172,7 @@ node --test tests/test_preview.mjs
 node --check web/ref_gallery.js && node --check web/gallery.mjs
 ```
 
-57 个 Python 测试覆盖索引完整性、深度图与姿势图逐条对齐、二次元线稿与彩图配对、缩略图逐条在库、路径穿越与越库访问拒绝、按视角 / 形态取图、上游地址模板（含线稿的 `line/` 路径）、缓存命中、离线提示、节点预览 URL 与错误回退、按需缓存的 remote 参数；8 个前端测试覆盖预览取图、视角联动、缩略图占位与旧请求不覆盖新选择。
+60 个 Python 测试覆盖索引完整性、深度图与姿势图逐条对齐、二次元线稿与彩图配对、服装动画与服装编号重合但路径互不干扰、缩略图逐条在库、路径穿越与越库访问拒绝、按视角 / 形态取图、上游地址模板（含线稿的 `line/` 路径）、缓存命中、离线提示、节点预览 URL 与错误回退、按需缓存的 remote 参数；8 个前端测试覆盖预览取图、视角联动、缩略图占位与旧请求不覆盖新选择。
 
 ## 权利联系
 

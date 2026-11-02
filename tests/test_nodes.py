@@ -110,7 +110,7 @@ class InputDefinitionTests(unittest.TestCase):
                 self.assertEqual(spec['optional'][key][1]['default'], expected[0])
 
     def test_libraries_without_angles_have_no_angle_input(self):
-        for cls in (nodes.FaceGallery, nodes.CostumeGallery):
+        for cls in (nodes.FaceGallery, nodes.CostumeGallery, nodes.CostumeAnimeGallery):
             with self.subTest(node=cls.__name__):
                 spec = cls.INPUT_TYPES()
                 self.assertNotIn('angle', spec['required'])
@@ -120,6 +120,7 @@ class InputDefinitionTests(unittest.TestCase):
         for cls, widget, value in ((nodes.PoseGallery, 'pose_id', 'POS-SEXY-P031'),
                                    (nodes.FaceGallery, 'face_id', 'FACE-0001'),
                                    (nodes.CostumeGallery, 'costume_id', 'SPR-0002'),
+                                   (nodes.CostumeAnimeGallery, 'costume_anime_id', 'SPR-0002'),
                                    (nodes.DepthGallery, 'depth_id', 'DEP-SEXY-P031'),
                                    (nodes.AnimeGallery, 'anime_id', 'ANE-P001')):
             with self.subTest(node=cls.__name__):
@@ -154,16 +155,36 @@ class AnimeVariantTests(unittest.TestCase):
         self.assertEqual(nodes.variant_values('pose'), nodes.ANGLES)
         self.assertEqual(nodes.variant_values('depth'), nodes.ANGLES)
         self.assertEqual(nodes.variant_values('costume'), [], '服装没有形态维度，不该有下拉')
+        self.assertEqual(nodes.variant_values('costume-anime'), [], '服装动画与写实版各是独立图库，没有形态维度')
 
     def test_anime_import_name_keeps_variant(self):
         """导入到 input 目录时彩图/线稿不能撞名，否则后导入的会盖掉前一个。"""
         self.assertNotEqual(nodes.ANGLE_SLUGS['彩图'], nodes.ANGLE_SLUGS['线稿'])
 
 
+class CostumeAnimeTests(unittest.TestCase):
+    """服装动画版与写实服装共用 SPR / SUM … 编号，独立成库，落盘与导入都不能互相盖掉。"""
+
+    def test_same_id_resolves_to_different_files(self):
+        real = nodes.pick(nodes.item('costume', 'SPR-0001'), '原图')
+        anime = nodes.pick(nodes.item('costume-anime', 'SPR-0001'), '原图')
+        self.assertNotEqual(real, anime)
+        self.assertTrue(real.startswith('costume/'), real)
+        self.assertTrue(anime.startswith('costume-anime/'), anime)
+
+    def test_import_name_is_namespaced_to_avoid_overwriting_realistic(self):
+        """同一编号两个库都导入过时，input 目录里必须是两个文件，否则后导入的会盖掉前一个。"""
+        self.assertEqual(nodes.import_to_input.__doc__ is not None, True)
+        tagged = nodes.LIB_TAG.get('costume-anime')
+        self.assertEqual(tagged, 'anime-', '服装动画的导入前缀丢了就会和写实版撞名')
+        self.assertNotIn('costume', nodes.LIB_TAG, '写实服装的名字要保持原样，不能打断已有工作流')
+
+
 class RegistrationTests(unittest.TestCase):
-    def test_five_nodes_are_registered(self):
+    def test_six_nodes_are_registered(self):
         self.assertEqual(set(nodes.NODE_CLASS_MAPPINGS),
-                         {'CostumeGallery', 'PoseGallery', 'FaceGallery', 'DepthGallery', 'AnimeGallery'})
+                         {'CostumeGallery', 'CostumeAnimeGallery', 'PoseGallery', 'FaceGallery', 'DepthGallery',
+                          'AnimeGallery'})
         for key in nodes.NODE_CLASS_MAPPINGS:
             with self.subTest(node=key):
                 self.assertIn(key, nodes.NODE_DISPLAY_NAME_MAPPINGS)

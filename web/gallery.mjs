@@ -9,6 +9,13 @@ const LIBS = {
     placeholder: '试试 蕾丝、牛仔、白色 或 SPR-0001',
     source: 'https://ai-costume-gallery.pages.dev/',
   },
+  'costume-anime': {
+    label: '服装动画', unit: '套', note: '服装动画档案',
+    headline: '换一种画风，再看同一件衣服。',
+    blurb: '1,320 套动漫画风的无人物衣装，8 个分类与写实版一致。<br>适合漫剧、角色设定与二次元插画。',
+    placeholder: '试试 水手服、百褶裙、针织 或 SPR-0001',
+    source: 'https://ai-costume-anime-gallery.pages.dev/',
+  },
   pose: {
     label: '姿势', unit: '个', note: '姿势参考档案',
     headline: '让角色，摆出准确的姿势。',
@@ -250,7 +257,7 @@ function showDetail() {
   $('prev').disabled = current === 0; $('next').disabled = current === filtered.length - 1;
   $('copy').textContent = '复制 ID';
   $('use-item').disabled = window.parent === window;
-  $('use-item').textContent = window.parent === window ? `请从 ComfyUI 节点打开以使用${config.label}` : `使用此${config.label} → ComfyUI`;
+  $('use-item').textContent = window.parent === window ? '请从 ComfyUI 节点打开使用' : `使用此${config.label} → ComfyUI`;
 }
 
 $('q').addEventListener('input', applyFilters);
@@ -391,7 +398,7 @@ function renderPlan(plan) {
     ? `本机还缺 <strong>${plan.missing.toLocaleString()}</strong> 张原图，预计占用 <strong>${fmtSize(plan.estimated_bytes)}</strong>。`
       + `<br>保存到 <code>${plan.root}</code> 下各库的 <code>png/</code>；磁盘当前可用 `
       + `<strong>${plan.free_bytes == null ? '未知' : fmtSize(plan.free_bytes)}</strong>。`
-    : '四个图库的原图本机都已经有了，不需要再下载。';
+    : '六个图库的原图本机都已经有了，不需要再下载。';
 
   $('fetch-libs').replaceChildren(...Object.entries(plan.libraries).map(([key, info]) => {
     const li = element('li');

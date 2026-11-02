@@ -1,13 +1,19 @@
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
 
-// 四个自有图库节点
+// 六个自有图库节点
 const LIBRARIES = {
   CostumeGallery: {
     library: "costume",
     idWidget: "costume_id",
     label: "服装",
     button: "浏览服装图库 · 搜索 / 分类 / 关键词",
+  },
+  CostumeAnimeGallery: {
+    library: "costume-anime",
+    idWidget: "costume_anime_id",
+    label: "服装动画",
+    button: "浏览服装动画图库 · 1,320 套动漫衣装",
   },
   PoseGallery: {
     library: "pose",
@@ -40,7 +46,7 @@ const LIBRARIES = {
 
 let activeDialog = null;
 
-// 四个节点与「任意加载图像节点」共用同一个选择器：图库页里可以随时切库。
+// 六个节点与「任意加载图像节点」共用同一个选择器：图库页里可以随时切库。
 function openGalleryDialog({ library, title, onSelect }) {
   activeDialog?.close();
   let frame = null;

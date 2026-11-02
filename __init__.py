@@ -1,4 +1,4 @@
-"""ComfyUI reference gallery: 服装 / 姿势 / 脸部 / 深度姿势 / 二次元。随仓库发行索引与内置缩略图，原图按需向作者站点取一次。"""
+"""ComfyUI reference gallery: 服装 / 服装动画 / 姿势 / 脸部 / 深度姿势 / 二次元。随仓库发行索引与内置缩略图，原图按需向作者站点取一次。"""
 import asyncio
 import re
 import shutil
@@ -15,7 +15,7 @@ from .catalog import (ANGLES, LIBRARIES, OFFLINE_ENV, ROOT, VARIANTS, asset, ass
 from . import bulk
 
 class _GalleryNode:
-    """五个图库共用同一套加载逻辑，差异只在索引、控件名、返回值命名与形态维度。"""
+    """六个图库共用同一套加载逻辑，差异只在索引、控件名、返回值命名与形态维度。"""
 
     LIBRARY = 'costume'
     ID_WIDGET = 'costume_id'
@@ -90,6 +90,21 @@ class CostumeGallery(_GalleryNode):
     DESCRIPTION = '中文服装图库：1,407 套，分类筛选与中英文搜索，输出完整 PNG 原图。'
 
     def load_costume(self, **values):
+        return self._load(**values)
+
+
+class CostumeAnimeGallery(_GalleryNode):
+    """服装动画版：分类与编号规则跟写实服装完全一样，但是另一个站点的另一批图，独立成库。"""
+
+    LIBRARY = 'costume-anime'
+    ID_WIDGET = 'costume_anime_id'
+    DEFAULT_ID = 'SPR-0001'
+    FUNCTION = 'load_costume_anime'
+    ID_TOOLTIP = '点击浏览服装动画图库，按中文、英文或编号搜索，再使用此服装。'
+    RETURN_NAMES = ('image', 'width', 'height', 'costume_anime_id', 'description', 'keywords_en')
+    DESCRIPTION = '服装动画图库：1,320 套动漫画风的无人物服装参考，8 个分类，中英关键词搜索，输出完整 PNG 原图。'
+
+    def load_costume_anime(self, **values):
         return self._load(**values)
 
 
@@ -202,6 +217,10 @@ async def _file(resolver, kind, filename, library):
 
 ANGLE_SLUGS = {'正面': 'front', '俯视': 'high', '仰视': 'low', '侧面': 'side', '斜45°': '45deg',
                '彩图': 'color', '线稿': 'line'}
+# 服装动画版与写实服装共用 SPR / SUM / AUT … 编号（上游两版各自独立编号，不做互补），
+# 落到 input 目录会互相覆盖，所以这一库的文件名带库前缀。其余库编号前缀天然唯一
+# （POS- / FACE- / DEP- / ANE-），保持原样，免得打断已经存好的工作流。
+LIB_TAG = {'costume-anime': 'anime-'}
 
 def import_to_input(library, item_id, angle, source):
     """把素材物化成 ComfyUI input 目录下的真实文件，供 LoadImage 等原生节点直接选用。
@@ -209,7 +228,7 @@ def import_to_input(library, item_id, angle, source):
     文件名与素材 ID 一一对应，重复导入同一素材只会覆盖同一个文件，不会让 input 目录越滚越大。
     """
     suffix = f'_{ANGLE_SLUGS.get(angle, re.sub(r"[^0-9A-Za-z]", "", str(angle or "")))}'
-    stem = re.sub(r'[^0-9A-Za-z._-]', '_', item_id)
+    stem = LIB_TAG.get(library, '') + re.sub(r'[^0-9A-Za-z._-]', '_', item_id)
     target = Path(folder_paths.get_input_directory()) / f'ref_{stem}{suffix if angle else ""}{source.suffix or ".png"}'
     if target.is_file() and target.stat().st_size == source.stat().st_size and target.read_bytes() == source.read_bytes():
         return target.name
@@ -323,10 +342,12 @@ class AnimeGallery(_GalleryNode):
         return self._load(**values)
 
 
-NODE_CLASS_MAPPINGS = {'CostumeGallery': CostumeGallery, 'PoseGallery': PoseGallery, 'FaceGallery': FaceGallery,
+NODE_CLASS_MAPPINGS = {'CostumeGallery': CostumeGallery, 'CostumeAnimeGallery': CostumeAnimeGallery,
+                       'PoseGallery': PoseGallery, 'FaceGallery': FaceGallery,
                        'DepthGallery': DepthGallery, 'AnimeGallery': AnimeGallery}
 NODE_DISPLAY_NAME_MAPPINGS = {
     'CostumeGallery': 'Costume Gallery 服装图库',
+    'CostumeAnimeGallery': 'Costume Anime Gallery 服装动画图库',
     'PoseGallery': 'Pose Gallery 姿势图库',
     'FaceGallery': 'Face Gallery 脸部图库',
     'DepthGallery': 'Depth Gallery 深度姿势图库',

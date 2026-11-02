@@ -28,7 +28,8 @@ RETRIES = 1
 # 但能避免请求严丝合缝地排成队列。
 PAUSE = 0.05
 # 一次都没下过原图时（全新安装）用的体积估值，单位字节。
-FALLBACK_BYTES = {'costume': 992_000, 'pose': 465_000, 'face': 3_242_000, 'depth': 97_000}
+FALLBACK_BYTES = {'costume': 992_000, 'costume-anime': 370_000, 'pose': 465_000, 'face': 3_242_000,
+                  'depth': 97_000}
 
 _guard = threading.Lock()
 _job = None

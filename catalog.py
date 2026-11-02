@@ -1,10 +1,11 @@
 """Reference assets: thumbs 随仓库内置，原图按“本地优先 → 上游取一次并缓存”获取。
 
-五个图库共用根目录 library/，每个库一个同名子目录，内部结构完全一致：
-  library/{costume,pose,face,depth,anime}/{thumbs,png,img}
+六个图库共用根目录 library/，每个库一个同名子目录，内部结构完全一致：
+  library/{costume,costume-anime,pose,face,depth,anime}/{thumbs,png,img}
 
-仓库随包发行缩略图（thumbs，7,091 张 WebP，约 46 MB：服装 / 姿势 / 脸部三库原样取自上游仓库
-sleepy-zone/ai-ref-library-cn 的内嵌缩略图，深度库与二次元库取自各自源站缩略图并转 360 px WebP，画面均未改）：
+仓库随包发行缩略图（thumbs，8,411 张 WebP，约 60 MB：服装 / 姿势 / 脸部三库原样取自上游仓库
+sleepy-zone/ai-ref-library-cn 的内嵌缩略图，深度库、二次元库与服装动画库取自各自源站缩略图
+并转 360 px WebP，画面均未改）：
   * 图库界面与节点预览读内置缩略图，离线开箱可览；
   * 原图（png）与全尺寸预览（img）不进仓库：节点出图或看大图时按
     “本地优先 → 上游下载并缓存到 library/{库}/png/”的顺序取，用过的原图落盘后完全离线；
@@ -36,6 +37,14 @@ LIBRARIES = {
                 'site': 'https://ai-costume-gallery.pages.dev/',
                 'origin': 'https://ai-costume-gallery.pages.dev/png/{stem}.png',
                 'thumb': 'https://ai-costume-gallery.pages.dev/thumbs/{stem}.webp'},
+    # 服装动画版：与写实服装同一批 8 个分类、同一套编号（SPR / SUM / …），但是另一个站、
+    # 另一批图，数量也不同（1,407 / 1,320），上游明确不做互补。所以是独立库，不能做形态维度。
+    # 编号空间重合 → 导入 ComfyUI input 目录时文件名要带库前缀，见 __init__.LIB_TAG。
+    'costume-anime': {'label': '服装动画', 'index': 'costume-anime-zh.json', 'meta': 'meta-costume-anime.json',
+                      'base': 'costume-anime',
+                      'site': 'https://ai-costume-anime-gallery.pages.dev/',
+                      'origin': 'https://ai-costume-anime-gallery.pages.dev/png/{stem}.png',
+                      'thumb': 'https://ai-costume-anime-gallery.pages.dev/thumbs/{stem}.webp'},
     'pose': {'label': '姿势', 'index': 'pose-zh.json', 'meta': 'meta-pose.json', 'base': 'pose',
              'site': 'https://ai-pose-gallery.pages.dev/',
              'origin': 'https://ai-pose-gallery.pages.dev/img/{stem}.png',

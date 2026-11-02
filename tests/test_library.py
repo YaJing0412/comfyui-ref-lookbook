@@ -3,7 +3,8 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1] / 'library'
-LIBS = {'costume': ('costume-zh.json', 1407), 'pose': ('pose-zh.json', 288), 'face': ('face-zh.json', 1498),
+LIBS = {'costume': ('costume-zh.json', 1407), 'costume-anime': ('costume-anime-zh.json', 1320),
+        'pose': ('pose-zh.json', 288), 'face': ('face-zh.json', 1498),
         'depth': ('depth-zh.json', 288), 'anime': ('anime-zh.json', 1027)}
 FIELDS = ('缩略图', '预览图', '原图')
 
@@ -100,6 +101,25 @@ class LibraryIndexTests(unittest.TestCase):
             with self.subTest(id=row['id']):
                 self.assertTrue(row['id'].startswith('ANE-'), row['id'])
                 self.assertEqual(row['分类'], {'H': '发型与眼睛', 'O': '服装', 'P': '姿势'}[row['id'].split('-')[1][0]])
+
+    def test_costume_anime_shares_ids_with_realistic_but_points_elsewhere(self):
+        """动画版与写实版的编号空间是重合的（上游两版各自独立编号），所以：
+
+        ID 允许一样，但路径必须落在各自库目录下，绝不能指向对方的图；分类仍是同一套 8 类。
+        """
+        real = json.loads((ROOT / 'data/costume-zh.json').read_text(encoding='utf-8'))
+        anime = json.loads((ROOT / 'data/costume-anime-zh.json').read_text(encoding='utf-8'))
+        self.assertEqual({r['分类'] for r in anime}, {r['分类'] for r in real})
+        self.assertEqual(len(anime), 1320)
+        overlap = {r['id'] for r in anime} & {r['id'] for r in real}
+        self.assertGreater(len(overlap), 1000, '两版编号确实大量重合，这是上游的设计')
+        for row in anime:
+            with self.subTest(id=row['id']):
+                for field in FIELDS:
+                    for relative in paths(row, field):
+                        self.assertTrue(relative.startswith('costume-anime/'), relative)
+        real_paths = {r['原图'] for r in real}
+        self.assertFalse({r['原图'] for r in anime} & real_paths, '两库不能共用同一个原图文件')
 
     def test_face_ids_are_sequential_and_keep_source_id(self):
         rows = json.loads((ROOT / 'data/face-zh.json').read_text(encoding='utf-8'))

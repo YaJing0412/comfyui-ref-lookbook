@@ -4,7 +4,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1] / 'library'
 LIBS = {'costume': ('costume-zh.json', 1407), 'pose': ('pose-zh.json', 288), 'face': ('face-zh.json', 1498),
-        'depth': ('depth-zh.json', 288)}
+        'depth': ('depth-zh.json', 288), 'anime': ('anime-zh.json', 1027)}
 FIELDS = ('缩略图', '预览图', '原图')
 
 
@@ -74,6 +74,32 @@ class LibraryIndexTests(unittest.TestCase):
                 self.assertEqual(list(d_row['原图']), list(p_row['原图']))
                 for angle, rel in p_row['原图'].items():
                     self.assertEqual(d_row['原图'][angle], rel.replace('pose/', 'depth/', 1))
+
+    def test_anime_line_art_is_paired_with_color(self):
+        """姿势才有线稿；有线稿的必须有彩图，反之彩图不一定有线稿。线稿文件名统一带 _line。"""
+        rows = json.loads((ROOT / 'data/anime-zh.json').read_text(encoding='utf-8'))
+        with_line = [r for r in rows if r['线稿']]
+        self.assertEqual(len(with_line), 281, '姿势 281 条，每个都该有线稿')
+        for row in rows:
+            with self.subTest(id=row['id']):
+                self.assertIsInstance(row['原图'], dict if row['线稿'] else str)
+                if not row['线稿']:
+                    continue
+                self.assertEqual(set(row['原图']), {'彩图', '线稿'})
+                self.assertNotIn('_line', row['原图']['彩图'])
+                self.assertIn('_line', row['原图']['线稿'])
+                for kind in ('原图', '缩略图', '预览图'):
+                    self.assertEqual(len(set(row[kind].values())), 2, f'{kind} 两个形态不能指向同一个文件')
+
+    def test_anime_ids_cover_all_three_kinds(self):
+        """H=发型与眼睛 / O=服装 / P=姿势，前缀丢了说明转换时截错了 ID。"""
+        rows = json.loads((ROOT / 'data/anime-zh.json').read_text(encoding='utf-8'))
+        prefixes = {r['id'].split('-')[1][0] for r in rows}
+        self.assertEqual(prefixes, {'H', 'O', 'P'})
+        for row in rows:
+            with self.subTest(id=row['id']):
+                self.assertTrue(row['id'].startswith('ANE-'), row['id'])
+                self.assertEqual(row['分类'], {'H': '发型与眼睛', 'O': '服装', 'P': '姿势'}[row['id'].split('-')[1][0]])
 
     def test_face_ids_are_sequential_and_keep_source_id(self):
         rows = json.loads((ROOT / 'data/face-zh.json').read_text(encoding='utf-8'))

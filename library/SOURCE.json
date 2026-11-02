@@ -11,7 +11,8 @@
     "costume": "ai-costume-gallery-zh @28616efb36e97b7c2f1ba451814cf3ad4649ad9a",
     "pose": "ai-ref-library-cn (pose.js 元数据) + 本地原图核对",
     "face": "ai-ref-library-cn (face.js 元数据) + 本地原图核对",
-    "depth": "pose-zh.json 派生 + ai-image-gallery (sites/pose-depth/manifest.json) 校对"
+    "depth": "pose-zh.json 派生 + ai-image-gallery (sites/pose-depth/manifest.json) 校对",
+    "anime": "ai-costume-gallery-zh (anime/data/anime-zh.json) + 本地图片核对"
   },
   "depth_reference": {
     "repo": "https://github.com/Brilliant666/ai-image-gallery",
@@ -19,28 +20,30 @@
     "site": "https://ai-pose-depth-gallery.pages.dev/",
     "note": "索引由 pose-zh.json 派生（POS- → DEP-、pose/ → depth/），文件名与深度站完全一致"
   },
-  "snapshot_date": "2026-10-31",
+  "snapshot_date": "2026-11-02",
   "distribution": {
     "shipped": [
       "data",
       "costume/thumbs",
       "pose/thumbs",
       "face/thumbs",
-      "depth/thumbs"
+      "depth/thumbs",
+      "anime/thumbs"
     ],
     "not_shipped": [
       "png",
       "img"
     ],
-    "reason": "姿势、服装、深度姿势三库的上游授权禁止再分发图片本体（含加工版）；原图不随仓库发行。缩略图为离线浏览随仓库内置：前三库取自 ai-ref-library-cn 的内嵌缩略图，深度库取自深度站缩略图，版权归原作者，权利人可要求移除",
-    "thumbs_strategy": "缩略图随仓库发行（webp，5,783 张约 18 MB）：服装 / 姿势 / 脸部原样取自 ai-ref-library-cn 内嵌缩略图（200×250），深度库由深度站缩略图转 360 px WebP；个别缺失时仍可按单张从作者站点取一次并缓存",
+    "reason": "姿势、服装、深度姿势、二次元四库的上游授权禁止再分发图片本体（含加工版）；原图不随仓库发行。缩略图为离线浏览随仓库内置：前三库取自 ai-ref-library-cn 的内嵌缩略图，深度库取自深度站、二次元库取自 CharaDB 缩略图，版权归原作者，权利人可要求移除",
+    "thumbs_strategy": "缩略图随仓库发行（webp，7,091 张约 46 MB）：服装 / 姿势 / 脸部原样取自 ai-ref-library-cn 内嵌缩略图（200×250），深度库与二次元库由源站缩略图转 360 px WebP（二次元线稿无源站缩略图，由线稿原图现缩）；个别缺失时仍可按单张从作者站点取一次并缓存",
     "originals_strategy": "节点出图或看大图时取一次，缓存在本机 library/<库>/png/，之后完全离线"
   },
   "runtime_downloads": "on-demand, one image per request, cached locally, never re-distributed",
   "original_author": {
     "costume_pose": "ギア (@giaaibusi)",
     "depth": "ギア (@giaaibusi)，与姿势集同作者",
-    "face": "あぎ (@agi_aibusi)"
+    "face": "あぎ (@agi_aibusi)",
+    "anime": "たき AI (@taki_auto)"
   },
   "libraries": {
     "costume": {
@@ -81,9 +84,27 @@
       "thumb_template": "https://ai-pose-depth-gallery.pages.dev/thumbs/{stem}.jpg",
       "license": "参考使用；禁止再分发图片本体（含加工版）；禁止批量自动抓取",
       "note": "与 pose 库同一批 288 个动作、1,439 个完全相同的文件名，内容为灰度深度图；索引由 tools/build_depth_library.py 从 pose-zh.json 派生"
+    },
+    "anime": {
+      "records": 1027,
+      "images": 1308,
+      "index": "data/anime-zh.json",
+      "original_site": "https://charadb-2fi.pages.dev/",
+      "origin_template": "https://charadb-2fi.pages.dev/img/{stem}.jpg",
+      "line_origin_template": "https://charadb-2fi.pages.dev/line/{stem}.png",
+      "thumb_template": "https://charadb-2fi.pages.dev/thumb/{stem}.webp",
+      "license": "参考使用；禁止再分发、转载、转售图片本体",
+      "note": "1,027 条记录 / 1,308 个图片版本：发型与眼睛 306、服装 440、姿势 281（姿势另有 281 张线稿）；线稿本地名 <源ID>_line，源站路径 line/<源ID>.png"
     }
   },
-  "records_total": 3481,
-  "images_total": 5783,
-  "chinese_index_source": "ai-ref-library-cn (pose.js / face.js 中文标签与编号)"
+  "records_total": 4508,
+  "images_total": 7091,
+  "chinese_index_source": "ai-ref-library-cn (pose.js / face.js 中文标签与编号) + ai-costume-gallery-zh (anime/data/anime-zh.json)",
+  "anime_reference": {
+    "repo": "https://github.com/Deeyu/ai-costume-gallery-zh",
+    "index": "anime/data/anime-zh.json",
+    "site": "https://charadb-2fi.pages.dev/",
+    "author": "たき AI (@taki_auto)",
+    "note": "发型与眼睛 / 服装 / 姿势三组混在一个库里，用「分类」区分；姿势组带线稿，本地文件名加 _line 后缀"
+  }
 }

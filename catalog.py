@@ -1,10 +1,10 @@
 """Reference assets: thumbs 随仓库内置，原图按“本地优先 → 上游取一次并缓存”获取。
 
-四个图库共用根目录 library/，每个库一个同名子目录，内部结构完全一致：
-  library/{costume,pose,face,depth}/{thumbs,png,img}
+五个图库共用根目录 library/，每个库一个同名子目录，内部结构完全一致：
+  library/{costume,pose,face,depth,anime}/{thumbs,png,img}
 
-仓库随包发行缩略图（thumbs，5,783 张 WebP，约 18 MB：服装 / 姿势 / 脸部三库原样取自上游仓库
-sleepy-zone/ai-ref-library-cn 的内嵌缩略图，深度库取自深度站缩略图并转 360 px WebP，画面均未改）：
+仓库随包发行缩略图（thumbs，7,091 张 WebP，约 46 MB：服装 / 姿势 / 脸部三库原样取自上游仓库
+sleepy-zone/ai-ref-library-cn 的内嵌缩略图，深度库与二次元库取自各自源站缩略图并转 360 px WebP，画面均未改）：
   * 图库界面与节点预览读内置缩略图，离线开箱可览；
   * 原图（png）与全尺寸预览（img）不进仓库：节点出图或看大图时按
     “本地优先 → 上游下载并缓存到 library/{库}/png/”的顺序取，用过的原图落盘后完全离线；
@@ -25,6 +25,8 @@ ROOT = Path(__file__).resolve().parent
 LIBRARY = Path(os.environ.get('COMFYUI_REF_LOOKBOOK_LIBRARY', ROOT / 'library')).resolve()
 FIELDS = {'png': '原图', 'img': '预览图', 'thumbs': '缩略图'}
 ANGLES = ['正面', '俯视', '仰视', '侧面', '斜45°']
+# 二次元库的形态维度不是机位，而是彩图 / 线稿（只有姿势两种都有）。
+VARIANTS = ['彩图', '线稿']
 THUMB_WIDTH = int(os.environ.get('COMFYUI_REF_LOOKBOOK_THUMB_WIDTH', '360'))
 THUMB_QUALITY = 78
 THUMB_WORKERS = int(os.environ.get('COMFYUI_REF_LOOKBOOK_THUMB_WORKERS', '8'))
@@ -47,6 +49,15 @@ LIBRARIES = {
               'site': 'https://ai-pose-depth-gallery.pages.dev/',
               'origin': 'https://ai-pose-depth-gallery.pages.dev/img/{stem}.png',
               'thumb': 'https://ai-pose-depth-gallery.pages.dev/thumbs/{stem}.jpg'},
+    # 二次元：发型 / 眼睛 / 服装 / 姿势混在一个库里，用「分类」区分。
+    # 形态不是机位而是「彩图 / 线稿」，姿势才有线稿，所以原图字段对姿势是 dict、其余是字符串。
+    # 线稿在源站是另一条路径（line/<源ID>.png），且没有现成缩略图：thumb 回退也走 line，
+    # 由 _write_thumb 现转 WebP。本地文件名是 <源ID>_line，拼地址时要去掉 _line 后缀。
+    'anime': {'label': '二次元', 'index': 'anime-zh.json', 'meta': 'meta-anime.json', 'base': 'anime',
+              'site': 'https://charadb-2fi.pages.dev/',
+              'origin': 'https://charadb-2fi.pages.dev/img/{stem}.jpg',
+              'line_origin': 'https://charadb-2fi.pages.dev/line/{stem}.png',
+              'thumb': 'https://charadb-2fi.pages.dev/thumb/{stem}.webp'},
 }
 DEFAULT_LIBRARY = 'costume'
 
@@ -135,6 +146,15 @@ def describe(row):
     return head + ' / ' + '、'.join(words) if words else head
 
 
+def variant_values(library):
+    """该库的形态维度取值：姿势与深度姿势是五个机位，二次元是彩图 / 线稿，其余库没有这一维。"""
+    if library in ('pose', 'depth'):
+        return list(ANGLES)
+    if library == 'anime':
+        return list(VARIANTS)
+    return []
+
+
 def pick(row, field, angle=None):
     """姿势记录按视角保存素材路径，其余记录是单一路径。"""
     value = row[field]
@@ -160,14 +180,26 @@ def _allowlisted(library, relative):
     return False
 
 
+def _line_url(library, relative):
+    """二次元线稿的源站地址：本地叫 <源ID>_line，源站是 line/<源ID>.png。"""
+    info = library_info(library)
+    stem = Path(relative).stem
+    if not info.get('line_origin') or not stem.endswith('_line'):
+        return None
+    return info['line_origin'].format(stem=stem[:-len('_line')])
+
+
 def origin_url(library, relative):
-    """上游原图地址：由素材文件名（不含扩展名）拼出，三个站点规则不同但都只认文件名。"""
-    return library_info(library)['origin'].format(stem=Path(relative).stem)
+    """上游原图地址：由素材文件名（不含扩展名）拼出，各站点规则不同但都只认文件名。"""
+    return _line_url(library, relative) or library_info(library)['origin'].format(stem=Path(relative).stem)
 
 
 def thumb_url(library, relative):
-    """上游缩略图地址。三个站点路径各不相同（webp / jpg / img-thumb），缓存到本地后统一成 WebP。"""
-    return library_info(library)['thumb'].format(stem=Path(relative).stem)
+    """上游缩略图地址。各站点路径各不相同（webp / jpg / img-thumb），缓存到本地后统一成 WebP。
+
+    二次元线稿在源站没有现成缩略图，回退到线稿原图（PNG），由 _write_thumb 现转码。
+    """
+    return _line_url(library, relative) or library_info(library)['thumb'].format(stem=Path(relative).stem)
 
 
 def site(library):

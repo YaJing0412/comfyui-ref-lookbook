@@ -154,6 +154,22 @@ class OriginFetchTests(unittest.TestCase):
         self.assertEqual(catalog.origin_url('face', 'face/png/f000a1c4200.png'),
                          'https://ai-portrait-gallery.pages.dev/img/full/f000a1c4200.png')
 
+    def test_anime_line_art_uses_its_own_path(self):
+        """线稿在源站是 line/<源ID>.png，不是 img/<本地名>.jpg；拼错会取回 HTML 而不是图片。"""
+        self.assertEqual(catalog.origin_url('anime', 'anime/png/P001.jpg'),
+                         'https://charadb-2fi.pages.dev/img/P001.jpg')
+        self.assertEqual(catalog.origin_url('anime', 'anime/png/P001_line.png'),
+                         'https://charadb-2fi.pages.dev/line/P001.png')
+        self.assertEqual(catalog.origin_url('anime', 'anime/png/H001-black.jpg'),
+                         'https://charadb-2fi.pages.dev/img/H001-black.jpg')
+
+    def test_anime_line_thumb_falls_back_to_line_original(self):
+        """源站没有线稿缩略图，缺失时回退到线稿原图再转码，不能去要 thumb/<名>_line.webp。"""
+        self.assertEqual(catalog.thumb_url('anime', 'anime/thumbs/P001.webp'),
+                         'https://charadb-2fi.pages.dev/thumb/P001.webp')
+        self.assertEqual(catalog.thumb_url('anime', 'anime/thumbs/P001_line.webp'),
+                         'https://charadb-2fi.pages.dev/line/P001.png')
+
     def test_local_original_wins_without_network(self):
         local = catalog.local_path('costume/png/SPR-0001.png')
         local.parent.mkdir(parents=True)

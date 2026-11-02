@@ -194,3 +194,31 @@ test('nodes without an image filename widget are left alone', async () => {
   assert.equal(node.onNodeCreated, undefined, '不相关节点不该被包装');
   assert.equal(node.widgets.length, 1);
 });
+
+test('preview survives taller widget rows from other ComfyUI builds', async () => {
+  const { createNode, images } = harness();
+  // 别的版本控件高 34px、last_y 也不一样，写死 +26 会把预览区算成 0 高度。
+  const widgets = [
+    { name: 'costume_id', value: 'SPR-0001', last_y: 30, computeSize: () => [300, 34] },
+    { name: 'browse', value: null, last_y: 70, computeSize: () => [300, 34] },
+    { name: 'import', value: null, last_y: 110, computeSize: () => [300, 34] },
+  ];
+  const node = await createNode('CostumeGallery', widgets, LIB_DATA);
+  node.size = [360, 420];
+  images[0].load(400, 600);
+  const ctx = drawText(node);
+  assert.equal(ctx.images.length, 1, '控件更高时预览仍要画出来');
+  assert.ok(ctx.images[0].y >= 110 + 34, `预览不能压到控件上，实际 y=${ctx.images[0].y}`);
+  assert.ok(ctx.images[0].y + ctx.images[0].h <= node.size[1], '不超出节点底部');
+});
+
+test('preview falls back to the lower half instead of drawing nothing', async () => {
+  const { createNode, images } = harness();
+  // 极端情况：控件加起来比节点还高（用户把节点拖得很矮）
+  const widgets = [{ name: 'costume_id', value: 'SPR-0001', last_y: 470, computeSize: () => [300, 34] }];
+  const node = await createNode('CostumeGallery', widgets, LIB_DATA);
+  node.size = [360, 500];
+  images[0].load(400, 600);
+  const ctx = drawText(node);
+  assert.equal(ctx.images.length, 1, '空间不够也要兜底画出来，不能一片空白');
+});

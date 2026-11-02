@@ -29,6 +29,13 @@ const LIBRARIES = {
     label: "深度姿势",
     button: "浏览深度姿势图库 · 288 个动作 / 五个机位",
   },
+  AnimeGallery: {
+    library: "anime",
+    idWidget: "anime_id",
+    variantWidget: "variant",
+    label: "二次元",
+    button: "浏览二次元图库 · 服装 / 发型与眼睛 / 姿势",
+  },
 };
 
 let activeDialog = null;
@@ -161,7 +168,9 @@ app.registerExtension({
       created?.apply(this, arguments);
       const node = this;
       const value = node.widgets.find((w) => w.name === config.idWidget);
-      const angleWidget = config.angleWidget ? node.widgets.find((w) => w.name === config.angleWidget) : null;
+      // 形态维度的控件名各库不同：姿势 / 深度姿势是 angle（五个机位），二次元是 variant（彩图 / 线稿）。
+      const variantName = config.variantWidget || config.angleWidget;
+      const angleWidget = variantName ? node.widgets.find((w) => w.name === variantName) : null;
 
       // 预览直接画在节点画布上，不用 DOM 控件：DOM 控件的定位由前端布局决定，
       // 一旦图片原始尺寸大于分配区域就会溢出节点边框。
@@ -192,15 +201,25 @@ app.registerExtension({
         const request = ++previewRequest;
         const itemId = String(value.value);
         const url = sourceOf(itemId);
-        const angle = angleWidget ? `（视角 ${angleWidget.value}）` : "";
-        const note = `${config.label}缩略图缺失：${itemId}${angle}。内置图库不完整，请重新安装节点以补齐 library/${config.library}/thumbs。`;
+        const suffix = angleWidget ? `（${angleWidget.value}）` : "";
+        const note = `${config.label}缩略图缺失：${itemId}${suffix}。内置图库不完整，请重新安装节点以补齐 library/${config.library}/thumbs。`;
         previewState = "loading";
         node.setDirtyCanvas(true, false);
         previewImage.onload = () => {
           if (request === previewRequest) markReady();
         };
         previewImage.onerror = () => {
-          if (request === previewRequest) markError(note);
+          if (request !== previewRequest) return;
+          markError(note);
+          // 顺手探一次真实状态码：404 是缩略图没随包，其它状态是请求本身出了问题。
+          // 用户报「不显示」时，F12 控制台这一行就能定位，不用来回猜。
+          if (typeof fetch === "function") {
+            fetch(url, { method: "HEAD" })
+              .then((r) => console.warn("[参考图库] 缩略图加载失败", { id: itemId, url, status: r.status }))
+              .catch(() => console.warn("[参考图库] 缩略图加载失败", { id: itemId, url, status: "网络不可达" }));
+          } else {
+            console.warn("[参考图库] 缩略图加载失败", { id: itemId, url });
+          }
         };
         previewImage.src = url;
         if (previewImage.complete && previewImage.naturalWidth) markReady();
@@ -234,19 +253,37 @@ app.registerExtension({
       }
 
       // 预览区域的纵坐标取最后一个控件的下沿，图片按剩余高度等比缩放居中。
+      // 控件高度不能写死：不同 ComfyUI 前端版本的控件高度不一样（20 / 22 / 26 都见过），
+      // 写死会导致把预览区算成 0 高度，节点上什么都不画——换个版本的机器就复现。
+      const widgetBottom = (widget) => {
+        if (typeof widget.last_y !== "number") return 0;
+        let height = 20;
+        if (typeof widget.computeSize === "function") {
+          try {
+            const size = widget.computeSize(node.size[0]);
+            if (Array.isArray(size) && Number(size[1]) > 0) height = Number(size[1]);
+          } catch {
+            /* 少数前端版本在未布局时抛错，退回默认值 */
+          }
+        }
+        return widget.last_y + height + 6;
+      };
       const previewRect = () => {
         const margin = 10;
         let top = 30;
-        for (const widget of node.widgets ?? []) {
-          if (typeof widget.last_y === "number") top = Math.max(top, widget.last_y + 26);
-        }
+        for (const widget of node.widgets ?? []) top = Math.max(top, widgetBottom(widget));
         const width = Math.max(0, node.size[0] - margin * 2);
         const height = Math.max(0, node.size[1] - top - margin);
         return { x: margin, y: top, width, height };
       };
 
       const drawPreview = (ctx) => {
-        const rect = previewRect();
+        let rect = previewRect();
+        if (rect.height < 40) {
+          // 兜底：控件把空间吃光时退到节点下半部分，宁可和控件重叠也要把图显示出来。
+          const top = Math.max(40, node.size[1] * 0.5);
+          rect = { x: 10, y: top, width: Math.max(0, node.size[0] - 20), height: Math.max(0, node.size[1] - top - 8) };
+        }
         if (rect.width < 24 || rect.height < 24) return;
         ctx.save();
         ctx.fillStyle = "#f8f7f3";
@@ -266,7 +303,8 @@ app.registerExtension({
         } else if (previewState === "error") {
           ctx.fillStyle = "#8b2e2e";
           ctx.font = "12px sans-serif";
-          const lines = [`${config.label}缩略图缺失：${String(value.value)}`, `请重新安装节点补齐 library/${config.library}/thumbs`];
+          const lines = [`${config.label}缩略图未加载：${String(value.value)}`,
+            `library/${config.library}/thumbs/ · 按 F12 看控制台提示`];
           lines.forEach((line, index) => {
             ctx.fillText(line, rect.x + 10, rect.y + 26 + index * 18, rect.width - 20);
           });

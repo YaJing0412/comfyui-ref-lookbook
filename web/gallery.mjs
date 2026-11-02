@@ -30,6 +30,13 @@ const LIBS = {
     placeholder: '试试 站立、坐姿、双人 或 DEP-SEXY-P001',
     source: 'https://ai-pose-depth-gallery.pages.dev/',
   },
+  anime: {
+    label: '二次元', unit: '条', note: '二次元档案',
+    headline: '把角色，拆成可拼的零件。',
+    blurb: '服装 440、发型与眼睛 306、姿势 281，共 1,308 个图片版本。<br>姿势带线稿，彩图定色、线稿定形。',
+    placeholder: '试试 水手服、双马尾、黑发、立正 或 ANE-P001',
+    source: 'https://charadb-2fi.pages.dev/',
+  },
 };
 
 const requested = new URLSearchParams(location.search).get('lib');
@@ -303,7 +310,7 @@ function openDeepLink() {
 
 function applyLibraryChrome() {
   document.body.dataset.lib = lib;
-  document.title = `${config.label} · AI 参考图库｜服装 · 姿势 · 脸部 · 深度姿势`;
+  document.title = `${config.label} · AI 参考图库｜服装 · 姿势 · 脸部 · 深度姿势 · 二次元`;
   $('headline').innerHTML = config.headline;
   $('blurb').innerHTML = config.blurb;
   $('note-label').textContent = config.note;

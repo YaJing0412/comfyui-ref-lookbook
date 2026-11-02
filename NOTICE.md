@@ -12,7 +12,7 @@
 
 ## 素材来源
 
-四套素材均由原作者公开。**原图不分发**；姿势、脸部的中文标签与动作清单、服装 / 姿势 / 脸部三库的内置缩略图取自上游仓库 [sleepy-zone/ai-ref-library-cn](https://github.com/sleepy-zone/ai-ref-library-cn)（提前完整下载后离线整理，不是代码参考）；深度姿势库的索引由姿势库派生、按 [ai-image-gallery](https://github.com/Brilliant666/ai-image-gallery) 的 manifest 校对，缩略图取自深度站：
+五套素材均由原作者公开。**原图不分发**；姿势、脸部的中文标签与动作清单、服装 / 姿势 / 脸部三库的内置缩略图取自上游仓库 [sleepy-zone/ai-ref-library-cn](https://github.com/sleepy-zone/ai-ref-library-cn)（提前完整下载后离线整理，不是代码参考）；深度姿势库的索引由姿势库派生、按 [ai-image-gallery](https://github.com/Brilliant666/ai-image-gallery) 的 manifest 校对，缩略图取自深度站；二次元库的中文索引与分类取自 [Deeyu/ai-costume-gallery-zh](https://github.com/Deeyu/ai-costume-gallery-zh) 的 anime 索引，缩略图取自 CharaDB：
 
 | 库 | 源站 | 作者 | 授权 |
 | --- | --- | --- | --- |
@@ -20,5 +20,6 @@
 | 姿势 | [姿勢集 POSE-DB-01](https://ai-pose-gallery.pages.dev/) | ギア [@giaaibusi](https://x.com/giaaibusi) | 同上 |
 | 脸部 | [AIモデル顔データベース](https://ai-portrait-gallery.pages.dev/) | あぎ [@agi_aibusi](https://x.com/agi_aibusi) | CC0 |
 | 深度姿势 | [デプスポーズ集 POSE-DB-02](https://ai-pose-depth-gallery.pages.dev/) | ギア [@giaaibusi](https://x.com/giaaibusi) | 与姿势集同条款：可参考使用，禁止再分发图片本体 |
+| 二次元 | [キャラ組み立てDB CharaDB](https://charadb-2fi.pages.dev/) | たき AI [@taki_auto](https://x.com/taki_auto) | 参考使用；禁止再分发、转载、转售图片本体 |
 
 原图只在运行时由使用者自己的机器向源站按单张取，取回即落盘 `library/<库>/png/`，缓存留在本机；`library/` 里随仓库发行的是中文索引、分类数据与内置缩略图。授权细节、许可范围与删除请求方式见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)，素材版本与地址模板见 [library/SOURCE.json](library/SOURCE.json)。

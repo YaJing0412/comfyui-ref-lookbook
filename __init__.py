@@ -1,4 +1,4 @@
-"""ComfyUI reference gallery: 服装 / 姿势 / 脸部。随仓库发行索引与内置缩略图，原图按需向作者站点取一次。"""
+"""ComfyUI reference gallery: 服装 / 姿势 / 脸部 / 深度姿势 / 二次元。随仓库发行索引与内置缩略图，原图按需向作者站点取一次。"""
 import asyncio
 import re
 import shutil
@@ -10,18 +10,20 @@ import torch
 from PIL import Image, ImageOps
 from aiohttp import web
 from server import PromptServer
-from .catalog import (ANGLES, LIBRARIES, OFFLINE_ENV, ROOT, asset, asset_by_id, describe, ensure_original,
-                      item, local_path, meta, missing_originals, offline, pick, records, site)
+from .catalog import (ANGLES, LIBRARIES, OFFLINE_ENV, ROOT, VARIANTS, asset, asset_by_id, describe, ensure_original,
+                      item, local_path, meta, missing_originals, offline, pick, records, site, variant_values)
 from . import bulk
 
 class _GalleryNode:
-    """四个图库共用同一套加载逻辑，差异只在索引、控件名与返回值命名。"""
+    """五个图库共用同一套加载逻辑，差异只在索引、控件名、返回值命名与形态维度。"""
 
     LIBRARY = 'costume'
     ID_WIDGET = 'costume_id'
     DEFAULT_ID = 'SPR-0001'
     ID_TOOLTIP = '点击浏览图库，按中文、编号或关键词搜索，再使用此素材。'
-    ANGLE = False
+    ANGLE = False                       # 是否有「形态」这一维：姿势是机位，二次元是彩图 / 线稿
+    VARIANT_WIDGET = 'angle'            # 该维度的控件名，决定前端怎么读
+    VARIANT_TOOLTIP = '同一素材的不同版本，切换后输出对应原图。'
     FUNCTION = 'load_costume'
     RETURN_TYPES = ('IMAGE', 'INT', 'INT', 'STRING', 'STRING', 'STRING')
     RETURN_NAMES = ('image', 'width', 'height', 'costume_id', 'description', 'keywords_en')
@@ -33,17 +35,18 @@ class _GalleryNode:
         required = {cls.ID_WIDGET: ('STRING', {'default': cls.DEFAULT_ID, 'multiline': False, 'tooltip': cls.ID_TOOLTIP})}
         inputs = {'required': required}
         if cls.ANGLE:
-            # 视角放 optional：界面上照样是下拉框，但 API 调用方不传这个键时不会整条链被判失败，
-            # 缺省回落到列表第一个机位。
+            # 形态放 optional：界面上照样是下拉框，但 API 调用方不传这个键时不会整条链被判失败，
+            # 缺省回落到列表第一个值。这个坑踩过一次：放 required 会让整条输出链被静默丢弃。
+            values = variant_values(cls.LIBRARY)
             inputs['optional'] = {
-                'angle': (ANGLES, {'default': ANGLES[0], 'tooltip': '同一姿势的五个机位，切换后输出对应原图。'}),
+                cls.VARIANT_WIDGET: (values, {'default': values[0], 'tooltip': cls.VARIANT_TOOLTIP}),
             }
         return inputs
 
     @classmethod
     def _relative(cls, values):
         row = item(cls.LIBRARY, str(values[cls.ID_WIDGET]))
-        return pick(row, '原图', values.get('angle'))
+        return pick(row, '原图', values.get(cls.VARIANT_WIDGET))
 
     @classmethod
     def _target(cls, values):
@@ -92,10 +95,12 @@ class CostumeGallery(_GalleryNode):
 
 class PoseGallery(_GalleryNode):
     LIBRARY = 'pose'
+    VARIANT_WIDGET = 'angle'
     ID_WIDGET = 'pose_id'
     DEFAULT_ID = 'POS-SEXY-P001'
     FUNCTION = 'load_pose'
     ANGLE = True
+    VARIANT_TOOLTIP = '同一姿势的五个机位，切换后输出对应原图。'
     ID_TOOLTIP = '点击浏览姿势图库，按系列、动作或编号搜索，每个姿势含五个机位。'
     RETURN_NAMES = ('image', 'width', 'height', 'pose_id', 'description', 'description_ja')
     DESCRIPTION = '中文姿势图库：288 个姿势 × 5 个机位（1,439 张），输出完整 PNG 原图。'
@@ -121,10 +126,12 @@ class DepthGallery(_GalleryNode):
     """深度姿势：与姿势库同一批 288 个姿势、同样五个机位，灰度表示远近，适合 ControlNet depth。"""
 
     LIBRARY = 'depth'
+    VARIANT_WIDGET = 'angle'
     ID_WIDGET = 'depth_id'
     DEFAULT_ID = 'DEP-SEXY-P001'
     FUNCTION = 'load_depth'
     ANGLE = True
+    VARIANT_TOOLTIP = '同一姿势的五个机位，切换后输出对应原图。'
     ID_TOOLTIP = '点击浏览深度姿势图库，按系列、动作或编号搜索，每个姿势含五个机位。'
     RETURN_NAMES = ('image', 'width', 'height', 'depth_id', 'description', 'description_ja')
     DESCRIPTION = '深度姿势图库：288 个姿势 × 5 个机位（1,439 张），灰度深度图，可直接接 ControlNet depth。'
@@ -191,7 +198,8 @@ async def _file(resolver, kind, filename, library):
     except (ValueError, FileNotFoundError):
         raise web.HTTPNotFound()
 
-ANGLE_SLUGS = {'正面': 'front', '俯视': 'high', '仰视': 'low', '侧面': 'side', '斜45°': '45deg'}
+ANGLE_SLUGS = {'正面': 'front', '俯视': 'high', '仰视': 'low', '侧面': 'side', '斜45°': '45deg',
+               '彩图': 'color', '线稿': 'line'}
 
 def import_to_input(library, item_id, angle, source):
     """把素材物化成 ComfyUI input 目录下的真实文件，供 LoadImage 等原生节点直接选用。
@@ -223,7 +231,7 @@ async def import_route(request):
     try:
         relative = pick(item(library, item_id), '原图', angle)
         source = ensure_original(library, relative)
-        name = import_to_input(library, item_id, angle if angle in ANGLES else None, source)
+        name = import_to_input(library, item_id, angle if angle in variant_values(library) else None, source)
     except ValueError as exc:
         return web.json_response({'error': str(exc)}, status=400)
     except FileNotFoundError as exc:
@@ -295,13 +303,32 @@ async def web_route(request):
 async def gallery_route(request):
     return web.FileResponse(ROOT / 'web' / 'gallery.html', headers={'Cache-Control': 'no-cache'})
 
+class AnimeGallery(_GalleryNode):
+    """二次元库：发型 / 眼睛 / 服装 / 姿势混在一个库里，靠「分类」区分，姿势额外带线稿。"""
+
+    LIBRARY = 'anime'
+    VARIANT_WIDGET = 'variant'
+    ID_WIDGET = 'anime_id'
+    DEFAULT_ID = 'ANE-H001'
+    FUNCTION = 'load_anime'
+    ANGLE = True
+    VARIANT_TOOLTIP = '彩图或线稿。只有姿势两种都有，其余素材选线稿会自动回落到彩图。'
+    ID_TOOLTIP = '点击浏览二次元图库，按服装 / 发型与眼睛 / 姿势分类或编号搜索。'
+    RETURN_NAMES = ('image', 'width', 'height', 'anime_id', 'description', 'keywords_en')
+    DESCRIPTION = '二次元图库：1,027 条（服装 440 / 发型与眼睛 306 / 姿势 281），共 1,308 个图片版本，姿势含线稿。'
+
+    def load_anime(self, **values):
+        return self._load(**values)
+
+
 NODE_CLASS_MAPPINGS = {'CostumeGallery': CostumeGallery, 'PoseGallery': PoseGallery, 'FaceGallery': FaceGallery,
-                       'DepthGallery': DepthGallery}
+                       'DepthGallery': DepthGallery, 'AnimeGallery': AnimeGallery}
 NODE_DISPLAY_NAME_MAPPINGS = {
     'CostumeGallery': 'Costume Gallery 服装图库',
     'PoseGallery': 'Pose Gallery 姿势图库',
     'FaceGallery': 'Face Gallery 脸部图库',
     'DepthGallery': 'Depth Gallery 深度姿势图库',
+    'AnimeGallery': 'Anime Gallery 二次元图库',
 }
 WEB_DIRECTORY = './web'
 __all__ = ['NODE_CLASS_MAPPINGS', 'NODE_DISPLAY_NAME_MAPPINGS', 'WEB_DIRECTORY']

@@ -98,14 +98,16 @@ nodes = _load_nodes()
 
 
 class InputDefinitionTests(unittest.TestCase):
-    def test_angle_is_optional_so_api_callers_can_omit_it(self):
-        for cls in (nodes.PoseGallery, nodes.DepthGallery):
+    def test_variant_is_optional_so_api_callers_can_omit_it(self):
+        for cls in (nodes.PoseGallery, nodes.DepthGallery, nodes.AnimeGallery):
             spec = cls.INPUT_TYPES()
             with self.subTest(node=cls.__name__):
-                self.assertNotIn('angle', spec['required'], 'angle 放回 required 会让省略该键的 API 调用整条链被丢弃')
-                self.assertIn('angle', spec.get('optional', {}))
-                self.assertEqual(spec['optional']['angle'][0], nodes.ANGLES)
-                self.assertEqual(spec['optional']['angle'][1]['default'], nodes.ANGLES[0])
+                key = cls.VARIANT_WIDGET
+                expected = nodes.variant_values(cls.LIBRARY)
+                self.assertNotIn(key, spec['required'], f'{key} 放回 required 会让省略该键的 API 调用整条链被丢弃')
+                self.assertIn(key, spec.get('optional', {}))
+                self.assertEqual(spec['optional'][key][0], expected)
+                self.assertEqual(spec['optional'][key][1]['default'], expected[0])
 
     def test_libraries_without_angles_have_no_angle_input(self):
         for cls in (nodes.FaceGallery, nodes.CostumeGallery):
@@ -118,7 +120,8 @@ class InputDefinitionTests(unittest.TestCase):
         for cls, widget, value in ((nodes.PoseGallery, 'pose_id', 'POS-SEXY-P031'),
                                    (nodes.FaceGallery, 'face_id', 'FACE-0001'),
                                    (nodes.CostumeGallery, 'costume_id', 'SPR-0002'),
-                                   (nodes.DepthGallery, 'depth_id', 'DEP-SEXY-P031')):
+                                   (nodes.DepthGallery, 'depth_id', 'DEP-SEXY-P031'),
+                                   (nodes.AnimeGallery, 'anime_id', 'ANE-P001')):
             with self.subTest(node=cls.__name__):
                 self.assertIs(cls.VALIDATE_INPUTS(**{widget: value}), True)
 
@@ -132,10 +135,35 @@ class InputDefinitionTests(unittest.TestCase):
         self.assertEqual(nodes.pick(row, '原图', None), row['原图'][nodes.ANGLES[0]])
 
 
+class AnimeVariantTests(unittest.TestCase):
+    """二次元的两个形态：彩图 / 线稿。姿势两者都有，其余素材只有彩图。"""
+
+    def test_pose_line_art_resolves_to_its_own_file(self):
+        row = nodes.item('anime', 'ANE-P001')
+        color = nodes.pick(row, '原图', '彩图')
+        line = nodes.pick(row, '原图', '线稿')
+        self.assertNotEqual(color, line, '彩图与线稿必须是两个不同文件，否则切了也没用')
+        self.assertTrue(line.endswith('_line.png'), line)
+
+    def test_hair_falls_back_to_color_when_asking_for_line(self):
+        row = nodes.item('anime', 'ANE-H001')
+        self.assertEqual(nodes.pick(row, '原图', '线稿'), nodes.pick(row, '原图', '彩图'))
+
+    def test_variant_values_match_library(self):
+        self.assertEqual(nodes.variant_values('anime'), nodes.VARIANTS)
+        self.assertEqual(nodes.variant_values('pose'), nodes.ANGLES)
+        self.assertEqual(nodes.variant_values('depth'), nodes.ANGLES)
+        self.assertEqual(nodes.variant_values('costume'), [], '服装没有形态维度，不该有下拉')
+
+    def test_anime_import_name_keeps_variant(self):
+        """导入到 input 目录时彩图/线稿不能撞名，否则后导入的会盖掉前一个。"""
+        self.assertNotEqual(nodes.ANGLE_SLUGS['彩图'], nodes.ANGLE_SLUGS['线稿'])
+
+
 class RegistrationTests(unittest.TestCase):
-    def test_four_nodes_are_registered(self):
+    def test_five_nodes_are_registered(self):
         self.assertEqual(set(nodes.NODE_CLASS_MAPPINGS),
-                         {'CostumeGallery', 'PoseGallery', 'FaceGallery', 'DepthGallery'})
+                         {'CostumeGallery', 'PoseGallery', 'FaceGallery', 'DepthGallery', 'AnimeGallery'})
         for key in nodes.NODE_CLASS_MAPPINGS:
             with self.subTest(node=key):
                 self.assertIn(key, nodes.NODE_DISPLAY_NAME_MAPPINGS)

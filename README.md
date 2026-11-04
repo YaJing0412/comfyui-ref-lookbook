@@ -66,7 +66,7 @@ Windows 下直接双击 `start_gallery.bat` 也行（没装 Python 时会提示�
 
 两版，按手上有多少耐心选。
 
-**三合一配方（推荐）**：下载 [ref_recipe_qwen21.json](example_workflows/ref_recipe_qwen21.json)（12 KB），拖进画布即可。`CharacterRecipe` 一个节点取齐脸、服装、姿势，拼好的中文提示词直接连进 `TextEncodeQwenImage21`，还顺带输出三张并排的参考整图留档。不需要任何额外插件。整套实测：4060 Ti 8G 上 896×1152、25 步约 6 分钟一张。
+**三合一配方（推荐）**：下载 [ref_recipe_qwen21.json](example_workflows/ref_recipe_qwen21.json)（12 KB），拖进画布即可。`CharacterRecipe` 一个节点取齐脸、服装、姿势，拼好的中文提示词直接连进 `TextEncodeQwenImage21`，还顺带输出三张并排的参考整图留档。不需要任何额外插件。
 
 [使用指南](example_workflows/ref_recipe_qwen21.md) 讲参考图分工、提示词三条切法、深度模式与切库参数，以及深度图为什么不能直接当 Qwen 的参考。
 

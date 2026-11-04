@@ -129,12 +129,9 @@ DepthGallery.image → ControlNetApplyAdvanced.image → KSampler.positive
 | `ref_recipe/result` | 成图 |
 | `ref_recipe/reference_sheet` | 三合一参考整图，留档对照 |
 
-## 实测耗时
-
-RTX 4060 Ti 8G，896×1152、25 步：单张约 **6 分 10 秒**（含首次加载 6.8 GB 主模型与 8.7 GB 文本编码器）。第二次起模型已在内存里，主要时间花在采样。显存吃紧时把 `QwenImage21Cache` 的 `device` 设成 `cpu`、`dtype` 设成 `int8`，能少占一半 KV 缓存，速度略降。
-
 ## 效果边界
 
 - 头来自特写、身体来自线稿人偶，脖子与肩线是最容易出问题的地方；脸越大、越正，成功率越高。
 - 只适用单人、单套服装。多人姿势（`POS-PAIR-*`）、复杂遮挡需逐张评估。
 - 线稿人偶的躯干是简化造型，成图胸腰比例会跟着参考走，想改比例就换姿势素材。
+- 显存吃紧时把 `QwenImage21Cache` 的 `device` 设成 `cpu`、`dtype` 设成 `int8`，能少占一半 KV 缓存，速度略降。

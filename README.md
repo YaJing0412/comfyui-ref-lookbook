@@ -17,7 +17,7 @@ A ComfyUI node pack that turns six public AI-reference libraries (costume / cost
 
 第七个节点 `CharacterRecipe`（三合一角色配方）把脸部、服装、姿势三个库合成一次取图：一张参考整图 + 中英文合成提示词，适合「先定人再出图」的流程。
 
-当前版本 **v1.5.0**。每个版本新增了什么、修了什么，见[更新日志](更新日志.md)。
+当前版本 **v1.5.1**。每个版本新增了什么、修了什么，见[更新日志](更新日志.md)。
 
 ## 安装
 
@@ -64,9 +64,21 @@ Windows 下直接双击 `start_gallery.bat` 也行（没装 Python 时会提示�
 
 ## 示例工作流
 
-下载 [ref_gallery_combo_qwen21.json](example_workflows/ref_gallery_combo_qwen21.json)（30 KB），拖进 ComfyUI 画布即可。几个库直接组合——姿势给动作与构图、脸给身份与发型、服装给衣服，不需要真人照片；要走 ControlNet 就换深度姿势库，要二次元风格就换二次元库，要动漫画风的衣服就在服装动画库与服装库之间挑。画布上方的 `Fast Muter` 可一键切到「自上传模式」，用自己的照片当脸，不用改连线。
+两版，按手上有多少耐心选。
 
-[example_workflows/](example_workflows/) 目录里是工作流、使用指南与效果图；[使用指南](example_workflows/ref_gallery_combo_qwen21.md) 讲依赖、参数与脸部来源切换。
+**三合一配方（推荐）**：下载 [ref_recipe_qwen21.json](example_workflows/ref_recipe_qwen21.json)（13 KB），拖进画布即可。`CharacterRecipe` 一个节点取齐脸、服装、姿势，拼好的中文提示词直接连进 `TextEncodeQwenImage21`，还顺带输出三张并排的参考整图留档。不需要任何额外插件。整套实测：4060 Ti 8G 上 896×1152、25 步约 6 分钟一张。
+
+[使用指南](example_workflows/ref_recipe_qwen21.md) 讲参考图分工、提示词三条切法、深度模式与切库参数，以及深度图为什么不能直接当 Qwen 的参考。
+
+![三合一配方工作流](example_workflows/assets/ui/workflow-recipe-overview.jpg)
+
+| 三张参考 → 成图 |
+| --- |
+| ![配方成图](example_workflows/assets/compare/recipe-classroom.jpg) |
+
+**三库组合**：下载 [ref_gallery_combo_qwen21.json](example_workflows/ref_gallery_combo_qwen21.json)（30 KB）。三个图库节点各自取图——姿势给动作与构图、脸给身份与发型、服装给衣服，不需要真人照片；画布上方的 `Fast Muter` 可一键切到「自上传模式」，用自己的照片当脸，不用改连线。这一版要装 [rgthree-comfy](https://github.com/rgthree/rgthree-comfy)。
+
+[使用指南](example_workflows/ref_gallery_combo_qwen21.md) 讲依赖、参数与脸部来源切换。
 
 ![工作流总览](example_workflows/assets/ui/workflow-overview.jpg)
 
@@ -78,7 +90,10 @@ Windows 下直接双击 `start_gallery.bat` 也行（没装 Python 时会提示�
 
 ## 工作流依赖
 
-自定义节点一个：[rgthree-comfy](https://github.com/rgthree/rgthree-comfy)（提供 `Fast Muter` 等模式切换节点），ComfyUI Manager 搜 `rgthree` 装完重启。
+| 工作流 | 额外插件 |
+| --- | --- |
+| `ref_recipe_qwen21`（三合一配方） | 无，只用 ComfyUI 内置节点 |
+| `ref_gallery_combo_qwen21`（三库组合） | [rgthree-comfy](https://github.com/rgthree/rgthree-comfy)，提供 `Fast Muter` 等模式切换节点，ComfyUI Manager 搜 `rgthree` 装完重启 |
 
 模型四个，自行准备，放好后重启 ComfyUI。
 

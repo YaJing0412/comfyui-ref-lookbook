@@ -1,0 +1,747 @@
+{
+ "id": "ref-recipe-qwen21",
+ "revision": 0,
+ "last_node_id": 100,
+ "last_link_id": 16,
+ "nodes": [
+  {
+   "id": 1,
+   "type": "CharacterRecipe",
+   "pos": [
+    40,
+    60
+   ],
+   "size": [
+    400,
+    700
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "face_image",
+     "type": "IMAGE",
+     "slot_index": 0,
+     "links": [
+      2
+     ]
+    },
+    {
+     "name": "costume_image",
+     "type": "IMAGE",
+     "slot_index": 1,
+     "links": [
+      3
+     ]
+    },
+    {
+     "name": "pose_image",
+     "type": "IMAGE",
+     "slot_index": 2,
+     "links": [
+      1
+     ]
+    },
+    {
+     "name": "reference_sheet",
+     "type": "IMAGE",
+     "slot_index": 3,
+     "links": [
+      16
+     ]
+    },
+    {
+     "name": "width",
+     "type": "INT",
+     "slot_index": 4,
+     "links": null
+    },
+    {
+     "name": "height",
+     "type": "INT",
+     "slot_index": 5,
+     "links": null
+    },
+    {
+     "name": "prompt_zh",
+     "type": "STRING",
+     "slot_index": 6,
+     "links": [
+      4
+     ]
+    },
+    {
+     "name": "prompt_en",
+     "type": "STRING",
+     "slot_index": 7,
+     "links": null
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "CharacterRecipe"
+   },
+   "title": "三合一配方 - 脸 / 服装 / 姿势一次取齐，顺带出参考整图与中文提示词",
+   "widgets_values": [
+    "FACE-0001",
+    "SPR-0001",
+    "POS-SEXY-P001",
+    "高清日系动漫",
+    "银色双眸，教室窗边逆光，微风吹拂发丝",
+    "指定尺寸（居中裁剪）",
+    896,
+    1152,
+    false,
+    "正面",
+    "costume",
+    false
+   ]
+  },
+  {
+   "id": 2,
+   "type": "UNETLoader",
+   "pos": [
+    520,
+    60
+   ],
+   "size": [
+    340,
+    106
+   ],
+   "flags": {},
+   "order": 1,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "MODEL",
+     "type": "MODEL",
+     "slot_index": 0,
+     "links": [
+      7
+     ]
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "UNETLoader"
+   },
+   "title": "Load Diffusion Model - Qwen Image 2.1",
+   "widgets_values": [
+    "qwen_image_2.1_int8_convrot.safetensors",
+    "default"
+   ]
+  },
+  {
+   "id": 3,
+   "type": "LoraLoaderModelOnly",
+   "pos": [
+    520,
+    210
+   ],
+   "size": [
+    340,
+    106
+   ],
+   "flags": {},
+   "order": 3,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "link": 7
+    }
+   ],
+   "outputs": [
+    {
+     "name": "MODEL",
+     "type": "MODEL",
+     "slot_index": 0,
+     "links": [
+      8
+     ]
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "LoraLoaderModelOnly"
+   },
+   "title": "Load LoRA - PoseStudio 姿态编辑适配器",
+   "widgets_values": [
+    "VNCCS_QI2_PoseStudioV2.safetensors",
+    1
+   ]
+  },
+  {
+   "id": 4,
+   "type": "QwenImage21Cache",
+   "pos": [
+    520,
+    360
+   ],
+   "size": [
+    340,
+    130
+   ],
+   "flags": {},
+   "order": 5,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "link": 8
+    }
+   ],
+   "outputs": [
+    {
+     "name": "MODEL",
+     "type": "MODEL",
+     "slot_index": 0,
+     "links": [
+      9
+     ]
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "QwenImage21Cache"
+   },
+   "title": "Qwen Image 2.1 Cache - 省显存，8G 卡必备",
+   "widgets_values": [
+    "auto",
+    "default"
+   ]
+  },
+  {
+   "id": 5,
+   "type": "CLIPLoader",
+   "pos": [
+    520,
+    530
+   ],
+   "size": [
+    340,
+    130
+   ],
+   "flags": {},
+   "order": 2,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "CLIP",
+     "type": "CLIP",
+     "slot_index": 0,
+     "links": [
+      5
+     ]
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "CLIPLoader"
+   },
+   "title": "Load CLIP - Qwen3-VL 8B（类型选 qwen_image）",
+   "widgets_values": [
+    "qwen3vl_8b_int8_convrot.safetensors",
+    "qwen_image",
+    "default"
+   ]
+  },
+  {
+   "id": 6,
+   "type": "VAELoader",
+   "pos": [
+    520,
+    700
+   ],
+   "size": [
+    340,
+    82
+   ],
+   "flags": {},
+   "order": 4,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "VAE",
+     "type": "VAE",
+     "slot_index": 0,
+     "links": [
+      6,
+      14
+     ]
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "VAELoader"
+   },
+   "title": "Load VAE - Qwen Image 2.1 配套 VAE",
+   "widgets_values": [
+    "qwen_image_2.1_vae_bf16.safetensors"
+   ]
+  },
+  {
+   "id": 7,
+   "type": "TextEncodeQwenImage21",
+   "pos": [
+    900,
+    60
+   ],
+   "size": [
+    560,
+    520
+   ],
+   "flags": {},
+   "order": 6,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "clip",
+     "type": "CLIP",
+     "link": 5
+    },
+    {
+     "name": "prompt",
+     "type": "STRING",
+     "widget": {
+      "name": "prompt"
+     },
+     "link": 4
+    },
+    {
+     "name": "vae",
+     "type": "VAE",
+     "link": 6
+    },
+    {
+     "name": "images.image_1",
+     "shape": 7,
+     "type": "IMAGE",
+     "link": 1
+    },
+    {
+     "name": "images.image_2",
+     "shape": 7,
+     "type": "IMAGE",
+     "link": 2
+    },
+    {
+     "name": "images.image_3",
+     "shape": 7,
+     "type": "IMAGE",
+     "link": 3
+    },
+    {
+     "name": "images.image_4",
+     "shape": 7,
+     "type": "IMAGE",
+     "link": null
+    }
+   ],
+   "outputs": [
+    {
+     "name": "positive",
+     "type": "CONDITIONING",
+     "slot_index": 0,
+     "links": [
+      10
+     ]
+    },
+    {
+     "name": "negative",
+     "type": "CONDITIONING",
+     "slot_index": 1,
+     "links": [
+      11
+     ]
+    },
+    {
+     "name": "latent",
+     "type": "LATENT",
+     "slot_index": 2,
+     "links": [
+      12
+     ]
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "TextEncodeQwenImage21"
+   },
+   "title": "Text Encode Qwen Image 2.1 - 提示词直接吃配方的 prompt_zh",
+   "widgets_values": [
+    "融合参考图生成一张完整的角色立绘。",
+    "",
+    1024
+   ]
+  },
+  {
+   "id": 8,
+   "type": "KSampler",
+   "pos": [
+    1500,
+    60
+   ],
+   "size": [
+    400,
+    262
+   ],
+   "flags": {},
+   "order": 8,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "link": 9
+    },
+    {
+     "name": "positive",
+     "type": "CONDITIONING",
+     "link": 10
+    },
+    {
+     "name": "negative",
+     "type": "CONDITIONING",
+     "link": 11
+    },
+    {
+     "name": "latent_image",
+     "type": "LATENT",
+     "link": 12
+    }
+   ],
+   "outputs": [
+    {
+     "name": "LATENT",
+     "type": "LATENT",
+     "slot_index": 0,
+     "links": [
+      13
+     ]
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "KSampler"
+   },
+   "title": "KSampler - 25 步 / CFG 1 / euler simple",
+   "widgets_values": [
+    20261104,
+    "fixed",
+    25,
+    1,
+    "euler",
+    "simple",
+    1
+   ]
+  },
+  {
+   "id": 9,
+   "type": "VAEDecode",
+   "pos": [
+    1500,
+    370
+   ],
+   "size": [
+    300,
+    78
+   ],
+   "flags": {},
+   "order": 9,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "samples",
+     "type": "LATENT",
+     "link": 13
+    },
+    {
+     "name": "vae",
+     "type": "VAE",
+     "link": 14
+    }
+   ],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "slot_index": 0,
+     "links": [
+      15
+     ]
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "VAEDecode"
+   },
+   "title": "VAE Decode"
+  },
+  {
+   "id": 10,
+   "type": "SaveImage",
+   "pos": [
+    1940,
+    60
+   ],
+   "size": [
+    420,
+    460
+   ],
+   "flags": {},
+   "order": 10,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "link": 15
+    }
+   ],
+   "outputs": [],
+   "properties": {
+    "Node name for S&R": "SaveImage"
+   },
+   "title": "Save Image - 成图",
+   "widgets_values": [
+    "ref_recipe/result"
+   ]
+  },
+  {
+   "id": 11,
+   "type": "SaveImage",
+   "pos": [
+    1940,
+    560
+   ],
+   "size": [
+    420,
+    460
+   ],
+   "flags": {},
+   "order": 11,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "link": 16
+    }
+   ],
+   "outputs": [],
+   "properties": {
+    "Node name for S&R": "SaveImage"
+   },
+   "title": "Save Image - 三合一参考整图（留档对照）",
+   "widgets_values": [
+    "ref_recipe/reference_sheet"
+   ]
+  },
+  {
+   "id": 100,
+   "type": "MarkdownNote",
+   "pos": [
+    900,
+    640
+   ],
+   "size": [
+    560,
+    460
+   ],
+   "flags": {},
+   "order": 7,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [],
+   "properties": {
+    "Node name for S&R": "MarkdownNote"
+   },
+   "title": "使用说明",
+   "widgets_values": [
+    "# 三合一配方 → Qwen Image 2.1\n\n**一个节点取齐三样素材**，顺序固定不能换：\n\n| 端口 | 来源 | 给什么 |\n| --- | --- | --- |\n| `image_1` | 配方 `pose_image` | 动作、朝向、机位与构图 |\n| `image_2` | 配方 `face_image` | 身份、脸型、五官、发型与发色 |\n| `image_3` | 配方 `costume_image` | 服装、配饰、颜色与层次 |\n\n**提示词**：`prompt_zh` 直接连进编码器，由配方节点拼好（风格 + 人像 + 服装 + 动作 + 补充细节）。想用英文就把线改接 `prompt_en`；想纯手写就断线，在编码器里自己写。\n\n**换素材**：点配方节点三行里任意一行的按钮，选完即换；`style_preset` 换四套风格；`extra_prompt` 补细节。\n\n**尺寸**：`resize_mode` 选「指定尺寸（居中裁剪）」时按下面宽高出图；选「原图尺寸」则跟随姿势原图比例（成图尺寸由 `image_1` 决定）。\n\n**深度模式**：打开 `use_depth`，姿势槽自动改读深度库（`POS-` → `DEP-`），出来的 `pose_image` 是灰度深度图。Qwen 2.1 吃线稿最稳，深度图更适合接 ControlNet，要接的话把 `pose_image` 连到 `ControlNetApplyAdvanced` 的 image。\n\n**服装动画**：`costume_library` 切 `costume-anime`，同一套编号换动漫画风衣服。\n\n出图：`output/ref_recipe/`。8G 显存约 6 分钟一张（模型首载另算）。"
+   ]
+  }
+ ],
+ "links": [
+  [
+   1,
+   1,
+   2,
+   7,
+   3,
+   "IMAGE"
+  ],
+  [
+   2,
+   1,
+   0,
+   7,
+   4,
+   "IMAGE"
+  ],
+  [
+   3,
+   1,
+   1,
+   7,
+   5,
+   "IMAGE"
+  ],
+  [
+   4,
+   1,
+   6,
+   7,
+   1,
+   "STRING"
+  ],
+  [
+   5,
+   5,
+   0,
+   7,
+   0,
+   "CLIP"
+  ],
+  [
+   6,
+   6,
+   0,
+   7,
+   2,
+   "VAE"
+  ],
+  [
+   7,
+   2,
+   0,
+   3,
+   0,
+   "MODEL"
+  ],
+  [
+   8,
+   3,
+   0,
+   4,
+   0,
+   "MODEL"
+  ],
+  [
+   9,
+   4,
+   0,
+   8,
+   0,
+   "MODEL"
+  ],
+  [
+   10,
+   7,
+   0,
+   8,
+   1,
+   "CONDITIONING"
+  ],
+  [
+   11,
+   7,
+   1,
+   8,
+   2,
+   "CONDITIONING"
+  ],
+  [
+   12,
+   7,
+   2,
+   8,
+   3,
+   "LATENT"
+  ],
+  [
+   13,
+   8,
+   0,
+   9,
+   0,
+   "LATENT"
+  ],
+  [
+   14,
+   6,
+   0,
+   9,
+   1,
+   "VAE"
+  ],
+  [
+   15,
+   9,
+   0,
+   10,
+   0,
+   "IMAGE"
+  ],
+  [
+   16,
+   1,
+   3,
+   11,
+   0,
+   "IMAGE"
+  ]
+ ],
+ "groups": [
+  {
+   "id": 1,
+   "title": "① 三合一取素材：脸 + 服装 + 姿势",
+   "bounding": [
+    20,
+    -20,
+    440,
+    820
+   ],
+   "color": "#3f789e",
+   "font_size": 24,
+   "flags": {}
+  },
+  {
+   "id": 2,
+   "title": "② Qwen Image 2.1 出图（25 步）",
+   "bounding": [
+    500,
+    -20,
+    1420,
+    1160
+   ],
+   "color": "#3f789e",
+   "font_size": 24,
+   "flags": {}
+  },
+  {
+   "id": 3,
+   "title": "③ 出图与留档",
+   "bounding": [
+    1920,
+    -20,
+    460,
+    1060
+   ],
+   "color": "#3f789e",
+   "font_size": 24,
+   "flags": {}
+  }
+ ],
+ "config": {},
+ "extra": {
+  "workflowName": "三合一角色配方 · Qwen Image 2.1",
+  "ds": {
+   "scale": 0.5,
+   "offset": [
+    300,
+    364
+   ]
+  }
+ },
+ "version": 0.4
+}

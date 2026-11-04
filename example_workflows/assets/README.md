@@ -1,8 +1,8 @@
 # 效果图清单
 
-本目录是 `ref_gallery_combo_qwen21.json` 的实跑素材，文档按固定路径引用。换图时保持文件名不变，引用处无需改。
+本目录是两套示例工作流的实跑素材，文档按固定路径引用。换图时保持文件名不变，引用处无需改。
 
-`compare/` 与 `results/` 是工作流输出；`ui/` 是 ComfyUI 界面截图。JPEG 质量 88–92，长边 ≤1600 px，合计约 1.8 MB。
+`compare/` 与 `results/` 是工作流输出；`ui/` 是 ComfyUI 界面截图。JPEG 质量 88–92，长边 ≤1600 px（`ui/` 1800 px），合计约 2.4 MB。
 
 ## 目录
 
@@ -10,12 +10,18 @@
 | --- | --- |
 | `ui/gallery-window.jpg` | 图库弹窗：三个页签、分类筛选、卡片网格（1,407 套服装） |
 | `ui/load-image-button.jpg` | 原生「加载图像」节点上的「从参考图库导入 · 服装 / 姿势 / 脸部」按钮 |
-| `ui/workflow-overview.jpg` | 完整画布：三路图库 → 提示词 → 采样 → 成图 / 对比图两路输出 |
+| `ui/workflow-overview.jpg` | 三库组合工作流完整画布 |
+| `ui/workflow-recipe-overview.jpg` | 三合一配方工作流完整画布（配方 → 编码 → 采样 → 成图 / 参考整图） |
 | `compare/pose-navy-lace-arm-up.jpg` | 线稿人偶（举臂）→ 深蓝蕾丝 |
 | `compare/pose-navy-lace-hands-on-hips.jpg` | 线稿人偶（叉腰）→ 深蓝蕾丝 |
 | `compare/pose-mint-cat.jpg` | 线稿人偶（蹲坐）→ 薄荷绿猫耳 |
 | `compare/face-red-kimono.jpg` | 脸部特写（短发粉挑染）→ 白红巫女装 |
 | `compare/photo-white-cat.jpg` | 自上传照片 → 白粉猫装 |
+| `compare/recipe-classroom.jpg` | 配方三合一参考整图（脸 / 服装 / 姿势）→ 教室窗边成图 |
+| `compare/recipe-switch-sheet.jpg` | 切库组合：动画服装库 + 深度姿势库 + 水平翻转 + 留白填充 768×1024 的三联参考 |
+| `results/recipe-classroom.jpg` | 配方成图（`prompt_zh`，教室窗边逆光） |
+| `results/recipe-english.jpg` | 配方成图（`prompt_en`，同素材同种子） |
+| `results/recipe-depth.jpg` | 配方成图（`use_depth`，雨夜霓虹；胸前球状结构为深度图误读的实证） |
 | `results/star-magician.jpg` | 星空魔术师 |
 | `results/navy-lace-arm-up.jpg` | 深蓝蕾丝 · 举臂 |
 | `results/navy-lace-hands-on-hips.jpg` | 深蓝蕾丝 · 叉腰 |

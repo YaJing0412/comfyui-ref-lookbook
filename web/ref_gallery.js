@@ -42,6 +42,16 @@ const LIBRARIES = {
     label: "二次元",
     button: "浏览二次元图库 · 服装 / 发型与眼睛 / 姿势",
   },
+  // 三合一配方：一个节点挂三个库，各自一个按钮、一张缩略图。
+  CharacterRecipe: {
+    label: "角色配方",
+    slots: [
+      { library: "face", idWidget: "face_id", label: "脸部", button: "选脸部 / 发型" },
+      { library: "costume", idWidget: "costume_id", label: "服装", button: "选服装（写实 / 动画）" },
+      { library: "pose", idWidget: "pose_id", variantWidget: "pose_angle", label: "姿势",
+        button: "选姿势（跟随深度开关）", depthIdWidget: "use_depth" },
+    ],
+  },
 };
 
 let activeDialog = null;
@@ -166,6 +176,10 @@ app.registerExtension({
     const config = LIBRARIES[nodeData.name];
     if (!config) {
       registerImporter(nodeType, nodeData);
+      return;
+    }
+    if (config.slots) {
+      registerRecipeNode(nodeType, config);
       return;
     }
 
@@ -357,6 +371,204 @@ app.registerExtension({
     };
   },
 });
+
+// 三合一配方节点：脸部 / 服装 / 姿势三个库各一个按钮、一张缩略图，点图直接换该槽位的素材。
+// 预览区横向三等分，比单图节点占地方，默认节点也开得更大。
+function registerRecipeNode(nodeType, config) {
+  const created = nodeType.prototype.onNodeCreated;
+  nodeType.prototype.onNodeCreated = function () {
+    created?.apply(this, arguments);
+    const node = this;
+    const widgetOf = (name) => (name ? node.widgets?.find((w) => w.name === name) ?? null : null);
+
+    const slots = config.slots.map((slot) => {
+      const image = new Image();
+      image.decoding = "async";
+      return {
+        ...slot,
+        idWidget: widgetOf(slot.idWidget),
+        variantWidget: widgetOf(slot.variantWidget),
+        depthWidget: widgetOf(slot.depthIdWidget),
+        image,
+        state: "idle",
+      };
+    });
+
+    // 深度开关打开时，姿势槽位改读深度库，编号前缀 POS- → DEP-（两库 288 条一一对应）。
+    const resolve = (slot) => {
+      const depth = Boolean(slot.depthWidget?.value) && slot.library === "pose";
+      const raw = String(slot.idWidget?.value ?? "");
+      return {
+        depth,
+        library: depth ? "depth" : slot.library,
+        id: depth ? raw.replace(/^POS-/, "DEP-") : raw,
+        angle: slot.variantWidget ? String(slot.variantWidget.value ?? "") : "",
+      };
+    };
+
+    let request = 0;
+    const update = () => {
+      const ticket = ++request;
+      for (const slot of slots) {
+        const { library, id, angle } = resolve(slot);
+        const query = angle ? `?angle=${encodeURIComponent(angle)}` : "";
+        slot.state = "loading";
+        slot.image.onload = () => {
+          if (ticket !== request) return;
+          slot.state = "ready";
+          node.setDirtyCanvas(true, false);
+        };
+        slot.image.onerror = () => {
+          if (ticket !== request) return;
+          slot.state = "error";
+          node.setDirtyCanvas(true, false);
+        };
+        slot.image.src = api.apiURL(`/ref_lookbook/asset/${library}/thumbs/${encodeURIComponent(id)}${query}`);
+        if (slot.image.complete && slot.image.naturalWidth) slot.state = "ready";
+      }
+      node.setDirtyCanvas(true, false);
+    };
+
+    const bind = (widget) => {
+      if (!widget) return;
+      const previous = widget.callback;
+      widget.callback = function () {
+        previous?.apply(this, arguments);
+        update();
+      };
+    };
+    slots.forEach((slot) => {
+      bind(slot.idWidget);
+      bind(slot.variantWidget);
+      bind(slot.depthWidget);
+    });
+
+    const widgetBottom = (widget) => {
+      if (typeof widget.last_y !== "number") return 0;
+      let height = 20;
+      if (typeof widget.computeSize === "function") {
+        try {
+          const size = widget.computeSize(node.size[0]);
+          if (Array.isArray(size) && Number(size[1]) > 0) height = Number(size[1]);
+        } catch {
+          /* 未布局时个别前端版本会抛错，退回默认值 */
+        }
+      }
+      return widget.last_y + height + 6;
+    };
+    const previewRect = () => {
+      const margin = 10;
+      let top = 30;
+      for (const widget of node.widgets ?? []) top = Math.max(top, widgetBottom(widget));
+      const width = Math.max(0, node.size[0] - margin * 2);
+      const height = Math.max(0, node.size[1] - top - margin);
+      return { x: margin, y: top, width, height };
+    };
+    const slotRect = (rect, index) => {
+      const gap = 6;
+      const width = Math.max(0, (rect.width - gap * (slots.length - 1)) / slots.length);
+      return { x: rect.x + index * (width + gap), y: rect.y, width, height: rect.height };
+    };
+
+    const openPicker = (slot) => {
+      openGalleryDialog({
+        library: slot.library,
+        title: `参考图库 · 选择${slot.label}后点击「使用此${slot.label}」`,
+        onSelect: (data) => {
+          if (!slot.idWidget) return;
+          const pickedDepth = data.library === "depth" && slot.depthWidget;
+          slot.idWidget.value = pickedDepth ? String(data.id).replace(/^DEP-/, "POS-") : data.id;
+          if (pickedDepth) slot.depthWidget.value = true;
+          if (slot.variantWidget && typeof data.angle === "string" && data.angle) slot.variantWidget.value = data.angle;
+          slot.idWidget.callback?.(slot.idWidget.value);
+          slot.variantWidget?.callback?.(slot.variantWidget.value);
+          slot.depthWidget?.callback?.(slot.depthWidget.value);
+          node.setDirtyCanvas(true, true);
+          app.graph.change();
+        },
+      });
+    };
+
+    const drawSlots = (ctx) => {
+      let rect = previewRect();
+      if (rect.height < 40) {
+        const top = Math.max(40, node.size[1] * 0.5);
+        rect = { x: 10, y: top, width: Math.max(0, node.size[0] - 20), height: Math.max(0, node.size[1] - top - 8) };
+      }
+      if (rect.width < 30 || rect.height < 24) return;
+
+      slots.forEach((slot, index) => {
+        const box = slotRect(rect, index);
+        if (box.width < 12) return;
+        ctx.save();
+        ctx.fillStyle = "#f8f7f3";
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(box.x, box.y, box.width, box.height, 6);
+        else ctx.rect(box.x, box.y, box.width, box.height);
+        ctx.fill();
+        ctx.strokeStyle = "#d8d4c8";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        const labelY = box.y + 14;
+        ctx.fillStyle = "#6b6558";
+        ctx.font = "11px sans-serif";
+        ctx.fillText(slot.label, box.x + 6, labelY, box.width - 12);
+
+        const inner = { x: box.x + 4, y: box.y + 20, width: box.width - 8, height: box.height - 26 };
+        if (slot.state === "ready" && slot.image.naturalWidth) {
+          const scale = Math.min(inner.width / slot.image.naturalWidth, inner.height / slot.image.naturalHeight);
+          const w = slot.image.naturalWidth * scale;
+          const h = slot.image.naturalHeight * scale;
+          ctx.drawImage(slot.image, inner.x + (inner.width - w) / 2, inner.y + (inner.height - h) / 2, w, h);
+        } else {
+          ctx.fillStyle = slot.state === "error" ? "#8b2e2e" : "#8a8579";
+          ctx.font = "11px sans-serif";
+          const text = slot.state === "error" ? "缩略图缺失" : "载入中…";
+          ctx.fillText(text, inner.x + 4, inner.y + 16, inner.width - 8);
+        }
+        ctx.restore();
+      });
+    };
+
+    const draw = node.onDrawForeground;
+    node.onDrawForeground = function (ctx) {
+      draw?.apply(this, arguments);
+      if (this.flags?.collapsed) return;
+      drawSlots(ctx);
+    };
+
+    const mouseDown = node.onMouseDown;
+    node.onMouseDown = function (event, pos, canvas) {
+      const rect = previewRect();
+      for (let index = 0; index < slots.length; index += 1) {
+        const box = slotRect(rect, index);
+        if (pos[0] >= box.x && pos[0] <= box.x + box.width && pos[1] >= box.y && pos[1] <= box.y + box.height) {
+          openPicker(slots[index]);
+          return true;
+        }
+      }
+      return mouseDown?.apply(this, arguments);
+    };
+
+    slots.forEach((slot) => {
+      node.addWidget("button", slot.button, null, () => openPicker(slot), { serialize: false });
+    });
+
+    const configured = node.onConfigure;
+    node.onConfigure = function () {
+      configured?.apply(this, arguments);
+      update();
+    };
+    const removed = node.onRemoved;
+    node.onRemoved = function () {
+      activeDialog?.close();
+      removed?.apply(this, arguments);
+    };
+    node.setSize([480, 900]);
+    update();
+  };
+}
 
 // 给 LoadImage 之类的节点加一个「从参考图库导入」按钮
 function registerImporter(nodeType, nodeData) {

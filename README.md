@@ -15,7 +15,9 @@ A ComfyUI node pack that turns six public AI-reference libraries (costume / cost
 
 合计 5,828 条记录、8,411 张参考图。六个库互不依赖：可固定脸换装、固定装换脸、只换衣服做对比。深度姿势库与姿势库是同一批 288 个动作、同样文件名，只是内容换成灰度深度图，可直接接 ControlNet depth。二次元库把发型与眼睛、服装、姿势三组混在一个库里（编号前缀 `H` / `O` / `P` 区分），姿势另有线稿版本，适合二次元出图。服装动画库与服装库是同一批分类、同一套编号规则的两版不同画风，各自独立编号、互不补齐，**同一编号在两个库里是两张不同的图**，别指望用编号互相找回。
 
-当前版本 **v1.4.0**。每个版本新增了什么、修了什么，见[更新日志](更新日志.md)。
+第七个节点 `CharacterRecipe`（三合一角色配方）把脸部、服装、姿势三个库合成一次取图：一张参考整图 + 中英文合成提示词，适合「先定人再出图」的流程。
+
+当前版本 **v1.5.0**。每个版本新增了什么、修了什么，见[更新日志](更新日志.md)。
 
 ## 安装
 
@@ -47,13 +49,14 @@ Windows 下直接双击 `start_gallery.bat` 也行（没装 Python 时会提示�
 
 ## 用法
 
-1. 添加节点：`image → Reference Gallery → 服装 / 服装动画 / 姿势 / 脸部 / 深度姿势 / 二次元图库`。
+1. 添加节点：`image → Reference Gallery → 服装 / 服装动画 / 姿势 / 脸部 / 深度姿势 / 二次元图库`，以及三合一角色配方。
 2. 点「浏览…图库」开弹窗，顶部页签切换六个库；支持一二级分类、中英日关键词与编号搜索（空格分隔按「同时包含」筛选）。点节点上的预览图也能打开。
 3. 点卡片看大图，点「使用此素材 → ComfyUI」把编号写回节点（姿势同时写 `angle`，二次元同时写 `variant`）。
 4. 姿势与深度姿势可在图库和节点上切换视角：正面 / 俯视 / 仰视 / 侧面 / 斜 45°；二次元库可切换彩图 / 线稿（线稿只覆盖姿势组）。
 5. 任意原生「加载图像」节点（如 `Load Image`）也能调这个图库：选中后原图落到 `ComfyUI/input/ref_<编号>.png` 并自动填进该节点的图像控件，同一素材反复导入只覆盖同一个文件。服装动画库因为与服装库共用编号，文件名带库前缀（`ref_anime-SPR-0001.png`），两库同编号素材能同时存在于 `input/`。
 6. 直接开 `?lib=pose&id=POS-SEXY-P001` 可定位到某条素材；再带 `&angle=斜45°`（二次元用 `&angle=线稿`）能直接切到该形态。
 7. 深度姿势库可以直接接 ControlNet：`DepthGallery` 的 `image` 输出就是灰度深度图，连到 `ControlNetApplyAdvanced` 的 `image` 即可，不需要再加预处理器（图已经是深度图，再过一遍 depth 预处理器等于重复处理）。姿势库与深度姿势库编号一一对应，`POS-SEXY-P031` 对应 `DEP-SEXY-P031`，想要「线稿控姿态」用姿势库、想要「深度控体积」用深度姿势库。
+8. 三合一配方节点 `CharacterRecipe`：脸、服装、姿势三行各自有按钮和缩略图，点哪个换哪个；`style_preset` 选风格方向盘（日系动漫 / 写实摄影 / 韩系半厚涂 / 角色设定图），`extra_prompt` 补细节。打开 `use_depth` 时姿势槽位自动改读深度库（`POS-` → `DEP-`），预览也跟着变，直接接 ControlNet depth。输出里 `reference_sheet` 是三张并排的参考整图，适合丢给 img2img 或作为视觉参考。
 
 ![图库弹窗](example_workflows/assets/ui/gallery-window.jpg)
 
@@ -93,12 +96,32 @@ LoRA 是 AHEKOT 的 VNCCS PoseStudio Qwen Image 2.1 v2.0：[Civitai](https://civ
 | 输出 | 类型 | 内容 |
 | --- | --- | --- |
 | `image` | IMAGE | PNG 原图，RGB，保持原始尺寸；透明区域合成白底 |
-| `width` / `height` | INT | 原始尺寸 |
+| `width` / `height` | INT | 实际输出尺寸 |
 | `costume_id` / `pose_id` / `face_id` | STRING | 素材编号 |
 | `description` | STRING | 分类 + 二级分类 + 中文关键词 |
 | `keywords_en` / `description_ja` | STRING | 原始英文关键词 / 原始日文描述 |
 
-姿势与深度姿势节点额外有 `angle` 下拉（默认「正面」），二次元节点有 `variant` 下拉（默认「彩图」）。标签可能不完整，只作检索提示。这六个节点只提供参考图，本身不换装、不换脸。
+六个图库节点都有四个可选参数，默认值等于以前的行为，老工作流不受影响：
+
+| 参数 | 默认 | 说明 |
+| --- | --- | --- |
+| `resize_mode` | 原图尺寸 | 换成「指定尺寸（居中裁剪）」「指定尺寸（留白填充）」后按下面宽高输出 |
+| `width` / `height` | 1024 / 1280 | 仅指定尺寸模式生效，8 的倍数，64–8192 |
+| `flip_horizontal` | 否 | 水平翻转，人物朝左 / 朝右互换 |
+
+`CharacterRecipe` 的输出：
+
+| 输出 | 类型 | 内容 |
+| --- | --- | --- |
+| `face_image` / `costume_image` / `pose_image` | IMAGE | 三张参考图，已统一尺寸 |
+| `reference_sheet` | IMAGE | 三张横向拼图（间隔 12 px，白底），定人 + 定装 + 定动作一张看全 |
+| `width` / `height` | INT | 拼图尺寸 |
+| `prompt_zh` | STRING | 中文合成提示词：风格 + 人像发型 + 服装 + 动作构图 + 补充细节 |
+| `prompt_en` | STRING | 英文合成提示词：风格 + 服装英文关键词 + 「参考图定脸和姿势」。脸部与姿势索引没有英文词条，不硬翻日文 |
+
+配方节点的 `costume_library` 可切写实服装 / 服装动画（编号规则一致），`use_depth` 打开时姿势取同编号深度图。`pose_angle` 是姿势的五个机位。
+
+姿势与深度姿势节点额外有 `angle` 下拉（默认「正面」），二次元节点有 `variant` 下拉（默认「彩图」）。标签可能不完整，只作检索提示。这七个节点只提供参考图，本身不换装、不换脸。
 
 ## 图片怎么来
 
@@ -140,7 +163,7 @@ comfyui-ref-lookbook/
 ├── start_gallery.bat    # Windows 双击启动
 ├── example_workflows/   # 示例工作流 + 说明 + 效果图
 ├── licenses/            # 上游参考项目的许可原文
-└── tests/               # 73 个 Python 测试 + 8 个前端测试
+└── tests/               # 83 个 Python 测试 + 11 个前端测试
 ```
 
 `<库>/thumbs/` 随仓库内置（8,411 张 WebP，离线开箱可浏览）；`<库>/png/`、`<库>/img/` 进 `.gitignore`，只留 `.gitkeep` 占位。原图一律运行时获取：你在弹窗里看过、或在节点上出过图的那张，就落进对应目录，之后不再下载。
@@ -175,7 +198,7 @@ comfyui-ref-lookbook/
 | --- | --- |
 | [wangweihong/ai-costume-gallery-zh](https://github.com/wangweihong/ai-costume-gallery-zh) | 界面结构与中文分类思路（MIT，见 [`licenses/`](licenses/)） |
 | [wangweihong/comfyui-pose-gallery](https://github.com/wangweihong/comfyui-pose-gallery) | 节点与弹窗的交互方式（MIT，见 [`licenses/`](licenses/)） |
-| [anhao/ai-pose-gallery-zh](https://github.com/anhao/ai-pose-gallery-zh) | 汉化与分类口径的参考 |
+| [anhao/ai-pose-gallery-zh](https://github.com/anhao/ai-pose-gallery-zh) | 汉化与分类口径的参考；「三合一合成配方」的思路（三库同取、横向参考拼图、按风格预设组装中英文提示词）。节点代码为独立实现（MIT，见 [`licenses/`](licenses/)） |
 
 本项目独立编写的部分：六库合成一个节点包并统一分类与搜索；节点预览直接画在画布上（不用 DOM 控件，避免布局漂移与溢出）；「本机 → 源站 → 缓存」取图链路、原子写入、文件头校验、离线模式；选中素材可导入任意原生节点。
 
@@ -196,7 +219,7 @@ node --test tests/test_preview.mjs
 node --check web/ref_gallery.js && node --check web/gallery.mjs
 ```
 
-73 个 Python 测试覆盖索引完整性、深度图与姿势图逐条对齐、二次元线稿与彩图配对、服装动画与服装编号重合但路径互不干扰、缩略图逐条在库、路径穿越与越库访问拒绝、按视角 / 形态取图、上游地址模板（含线稿的 `line/` 路径）、缓存命中、离线提示、节点预览 URL 与错误回退、按需缓存的 remote 参数，外加独立 HTTP 服务的路由、白名单与穿越防护；8 个前端测试覆盖预览取图、视角联动、缩略图占位与旧请求不覆盖新选择。
+83 个 Python 测试覆盖索引完整性、深度图与姿势图逐条对齐、二次元线稿与彩图配对、服装动画与服装编号重合但路径互不干扰、缩略图逐条在库、路径穿越与越库访问拒绝、按视角 / 形态取图、上游地址模板（含线稿的 `line/` 路径）、缓存命中、离线提示、节点预览 URL 与错误回退、按需缓存的 remote 参数，外加独立 HTTP 服务的路由、白名单与穿越防护；11 个前端测试覆盖预览取图、视角联动、缩略图占位、旧请求不覆盖新选择，以及三合一配方节点的三槽位取图、深度开关联动与画布绘制。
 
 ## 权利联系
 

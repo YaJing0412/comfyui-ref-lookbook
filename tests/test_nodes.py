@@ -181,10 +181,10 @@ class CostumeAnimeTests(unittest.TestCase):
 
 
 class RegistrationTests(unittest.TestCase):
-    def test_six_nodes_are_registered(self):
+    def test_seven_nodes_are_registered(self):
         self.assertEqual(set(nodes.NODE_CLASS_MAPPINGS),
                          {'CostumeGallery', 'CostumeAnimeGallery', 'PoseGallery', 'FaceGallery', 'DepthGallery',
-                          'AnimeGallery'})
+                          'AnimeGallery', 'CharacterRecipe'})
         for key in nodes.NODE_CLASS_MAPPINGS:
             with self.subTest(node=key):
                 self.assertIn(key, nodes.NODE_DISPLAY_NAME_MAPPINGS)
@@ -200,6 +200,89 @@ class RegistrationTests(unittest.TestCase):
             row = nodes.item(lib, cls_default(lib))
             with self.subTest(library=lib):
                 self.assertEqual(len(row['原图']), 5)
+
+
+class ResizeOptionTests(unittest.TestCase):
+    """尺寸与翻转必须是 optional 且默认原图尺寸：升级节点不能改掉老工作流的出图分辨率。"""
+
+    WIDGETS = ('resize_mode', 'width', 'height', 'flip_horizontal')
+
+    def test_resize_options_are_optional_everywhere(self):
+        for key, cls in nodes.NODE_CLASS_MAPPINGS.items():
+            if key == 'CharacterRecipe':
+                continue  # 配方节点的尺寸做在 required 里：它总是要拼图，尺寸是明确必填的
+            with self.subTest(node=key):
+                optional = cls.INPUT_TYPES()['optional']
+                for widget in self.WIDGETS:
+                    self.assertIn(widget, optional, f'{widget} 放 required 会让老工作流缺键')
+
+    def test_default_resize_mode_keeps_original_size(self):
+        for key, cls in nodes.NODE_CLASS_MAPPINGS.items():
+            with self.subTest(node=key):
+                default = cls.INPUT_TYPES()['required' if key == 'CharacterRecipe' else 'optional']['resize_mode'][1]['default']
+                if key == 'CharacterRecipe':
+                    self.assertEqual(default, '指定尺寸（居中裁剪）', '配方节点要拼图，默认统一尺寸')
+                else:
+                    self.assertEqual(default, '原图尺寸', '默认原图尺寸才不改变已有出图结果')
+
+    def test_resize_changes_cache_key(self):
+        """同一张图改成指定尺寸后必须重算，不能命中上一次的原图缓存。"""
+        base = {'pose_id': 'POS-SEXY-P001', 'angle': '正面'}
+        original = nodes.PoseGallery.IS_CHANGED(**base)
+        resized = nodes.PoseGallery.IS_CHANGED(**base, resize_mode='指定尺寸（居中裁剪）', width=512, height=512)
+        self.assertNotEqual(original, resized)
+
+
+class CharacterRecipeTests(unittest.TestCase):
+    """三合一配方：三路 ID 都是必填字符串，其余参数可省，校验不触发下载。"""
+
+    def test_three_ids_are_required_and_optional_keys_are_optional(self):
+        spec = nodes.CharacterRecipe.INPUT_TYPES()
+        for key in ('face_id', 'costume_id', 'pose_id'):
+            with self.subTest(key=key):
+                self.assertIn(key, spec['required'])
+                self.assertEqual(spec['required'][key][0], 'STRING')
+        for key in ('pose_angle', 'costume_library', 'use_depth'):
+            with self.subTest(key=key):
+                self.assertIn(key, spec['optional'], f'{key} 放 required 会让省略它的 API 调用整条链被丢弃')
+
+    def test_validation_accepts_omitted_optional_inputs(self):
+        self.assertIs(nodes.CharacterRecipe.VALIDATE_INPUTS(), True)
+        self.assertIs(nodes.CharacterRecipe.VALIDATE_INPUTS(
+            face_id='FACE-0001', costume_id='SPR-0001', pose_id='POS-SEXY-P001'), True)
+
+    def test_validation_rejects_unknown_ids(self):
+        result = nodes.CharacterRecipe.VALIDATE_INPUTS(face_id='NOPE')
+        self.assertIsInstance(result, str)
+        self.assertIn('NOPE', result)
+
+    def test_validation_rejects_unknown_costume_library(self):
+        result = nodes.CharacterRecipe.VALIDATE_INPUTS(costume_library='not-a-library')
+        self.assertIsInstance(result, str)
+        self.assertIn('not-a-library', result)
+
+    def test_depth_switch_points_at_the_same_pose_by_number(self):
+        """深度库与姿势库编号一一对应，只差前缀；换库后必须仍能取到同一动作。"""
+        pose = nodes.item('pose', 'POS-SEXY-P001')
+        depth = nodes.item('depth', 'POS-SEXY-P001'.replace('POS-', 'DEP-', 1))
+        self.assertEqual(pose['分类2'], depth['分类2'])
+        self.assertEqual(len(depth['原图']), 5)
+
+    def test_validation_accepts_pose_id_when_depth_is_on(self):
+        """打开 use_depth 后 pose_id 仍是 POS- 开头：校验必须自己换前缀，
+        否则工作流会因为「未知深度姿势 ID：POS-SEXY-P001」整条被判失败。"""
+        self.assertIs(nodes.CharacterRecipe.VALIDATE_INPUTS(
+            pose_id='POS-SEXY-P001', use_depth=True), True)
+        self.assertIs(nodes.CharacterRecipe.VALIDATE_INPUTS(
+            pose_id='DEP-SEXY-P001', use_depth=True), True)
+
+    def test_prompt_helpers_keep_chinese_and_skip_japanese(self):
+        face = nodes.item('face', 'FACE-0001')
+        self.assertIn('短发', nodes._describe_zh(face))
+        # 脸部与姿势索引里没有英文词条：英文 prompt 宁可空着，也别把日文塞进去
+        self.assertEqual(nodes._describe_en(face), '')
+        costume = nodes.item('costume', 'SPR-0001')
+        self.assertIn('ivory', nodes._describe_en(costume))
 
 
 def cls_default(library):

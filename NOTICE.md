@@ -6,7 +6,7 @@
 | --- | --- | --- |
 | [wangweihong/ai-costume-gallery-zh](https://github.com/wangweihong/ai-costume-gallery-zh) | 服装库界面结构、分类与中文索引思路 | MIT，原文见 [licenses/ai-costume-gallery-zh-LICENSE.md](licenses/ai-costume-gallery-zh-LICENSE.md)（Deeyu） |
 | [wangweihong/comfyui-pose-gallery](https://github.com/wangweihong/comfyui-pose-gallery) | ComfyUI 节点预览与弹窗桥接方式 | MIT，原文见 [licenses/comfyui-pose-gallery-LICENSE.md](licenses/comfyui-pose-gallery-LICENSE.md)（Anhao） |
-| [anhao/ai-pose-gallery-zh](https://github.com/anhao/ai-pose-gallery-zh) | 姿势素材汉化与分类口径 | 参考思路，未复制代码 |
+| [anhao/ai-pose-gallery-zh](https://github.com/anhao/ai-pose-gallery-zh) | 姿势素材汉化与分类口径；三合一配方节点的思路（三库同取 + 横向拼图 + 中英文提示词组装） | 参考思路，未复制代码 |
 
 本仓库的界面与脚本为独立编写，未复制上述项目代码；参考关系不代表上述作者为本项目背书。
 

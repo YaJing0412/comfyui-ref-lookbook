@@ -222,3 +222,41 @@ test('preview falls back to the lower half instead of drawing nothing', async ()
   const ctx = drawText(node);
   assert.equal(ctx.images.length, 1, '空间不够也要兜底画出来，不能一片空白');
 });
+
+const recipeWidgets = () => ([
+  { name: 'face_id', value: 'FACE-0001' },
+  { name: 'costume_id', value: 'SPR-0001' },
+  { name: 'pose_id', value: 'POS-SEXY-P001' },
+  { name: 'pose_angle', value: '正面' },
+  { name: 'use_depth', value: false },
+]);
+
+test('recipe node loads one preview per library slot', async () => {
+  const { createNode, images } = harness();
+  await createNode('CharacterRecipe', recipeWidgets(), { name: 'CharacterRecipe' });
+  assert.equal(images.length, 3, '脸部 / 服装 / 姿势各一张预览');
+  assert.equal(images[0].src, '/api/ref_lookbook/asset/face/thumbs/FACE-0001');
+  assert.equal(images[1].src, '/api/ref_lookbook/asset/costume/thumbs/SPR-0001');
+  assert.equal(images[2].src, '/api/ref_lookbook/asset/pose/thumbs/POS-SEXY-P001?angle=%E6%AD%A3%E9%9D%A2');
+});
+
+test('recipe node pose slot follows the depth switch', async () => {
+  const { createNode, images } = harness();
+  const node = await createNode('CharacterRecipe', recipeWidgets(), { name: 'CharacterRecipe' });
+  node.widgets.find((widget) => widget.name === 'use_depth').value = true;
+  node.widgets.find((widget) => widget.name === 'use_depth').callback();
+  assert.equal(images[2].src, '/api/ref_lookbook/asset/depth/thumbs/DEP-SEXY-P001?angle=%E6%AD%A3%E9%9D%A2',
+    '打开深度后姿势槽位要读深度库，编号前缀换成 DEP-');
+});
+
+test('recipe node draws its three panels on the canvas', async () => {
+  const { createNode, images } = harness();
+  const node = await createNode('CharacterRecipe', recipeWidgets(), { name: 'CharacterRecipe' });
+  images.forEach((image) => image.load(400, 600));
+  const ctx = drawText(node);
+  assert.equal(ctx.images.length, 3, '三个槽位都应画出来');
+  assert.ok(ctx.texts.includes('脸部') && ctx.texts.includes('服装') && ctx.texts.includes('姿势'));
+  for (const rect of ctx.images) {
+    assert.ok(rect.w > 0 && rect.h > 0);
+  }
+});

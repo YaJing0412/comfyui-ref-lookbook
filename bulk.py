@@ -59,7 +59,7 @@ def _paths(row):
 
 def plan(libraries=None):
     """预估：各库还差多少张、大概占多少空间、会存到哪儿、磁盘还剩多少。"""
-    names = [name for name in (libraries or catalog.LIBRARIES) if name in catalog.LIBRARIES]
+    names = [name for name in (libraries or catalog.TAB_LIBRARIES) if name in catalog.LIBRARIES]
     detail, missing_total, bytes_total = {}, 0, 0
     for name in names:
         rows = catalog.records(name)
@@ -93,7 +93,7 @@ def start(libraries=None):
     with _guard:
         if _job and _job['running']:
             raise RuntimeError('已有下载任务在进行中')
-        names = [name for name in (libraries or catalog.LIBRARIES) if name in catalog.LIBRARIES]
+        names = [name for name in (libraries or catalog.TAB_LIBRARIES) if name in catalog.LIBRARIES]
         if not names:
             raise ValueError('没有可下载的图库')
         tasks = queue.Queue()

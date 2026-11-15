@@ -1,6 +1,6 @@
 # comfyui-ref-lookbook · 参考图册
 
-ComfyUI 节点包：把服装、服装动画、姿势、脸、深度姿势、二次元六套公开的 AI 参考素材收进一个图库节点，组合出图。**仓库发行代码、索引与内置缩略图，不含原图本体。**
+ComfyUI 节点包：把服装、服装动画、姿势、脸、深度姿势、二次元六套公开的 AI 参考素材收进一个图库节点，组合出图；另有一个独立的设计档案库（霧島澪，自带作者原版提示词）单开页面。**仓库发行代码、索引与内置缩略图，不含原图本体。**
 
 A ComfyUI node pack that turns six public AI-reference libraries (costume / costume-anime / pose / face / depth / anime) into one gallery, so a single image can be composed from all six.
 
@@ -12,12 +12,15 @@ A ComfyUI node pack that turns six public AI-reference libraries (costume / cost
 | 脸部 | `FaceGallery` | 1,498 张 | 1,498 张 | 脸部特写 / 造型 × 短发 / 中发 / 中长发 / 长发 | `FACE-0001` … |
 | 深度姿势 | `DepthGallery` | 288 个动作 | 1,439 张（每动作 5 机位） | 与姿势库同一批动作，灰度深度图 | `DEP-SEXY-P001` … |
 | 二次元 | `AnimeGallery` | 1,027 组 | 1,308 张（姿势另有线稿） | 发型与眼睛 / 服装 / 姿势 | `ANE-H001`、`ANE-O001`、`ANE-P001` … |
+| 澪设计档案 | `MioGallery` | 387 件（43 卷） | 387 张（单档，最长边约 418 px） | 发型 6 卷 / 服装 13 卷 / 姿势 24 卷 | `H-01-01`、`C-06-02`、`P-20-07` … |
 
 合计 5,828 条记录、8,411 张参考图。六个库互不依赖：可固定脸换装、固定装换脸、只换衣服做对比。深度姿势库与姿势库是同一批 288 个动作、同样文件名，只是内容换成灰度深度图，可直接接 ControlNet depth。二次元库把发型与眼睛、服装、姿势三组混在一个库里（编号前缀 `H` / `O` / `P` 区分），姿势另有线稿版本，适合二次元出图。服装动画库与服装库是同一批分类、同一套编号规则的两版不同画风，各自独立编号、互不补齐，**同一编号在两个库里是两张不同的图**，别指望用编号互相找回。
 
-第七个节点 `CharacterRecipe`（三合一角色配方）把脸部、服装、姿势三个库合成一次取图：一张参考整图 + 中英文合成提示词，适合「先定人再出图」的流程。
+另有一个「澪设计档案」库（`MioGallery`，387 件）**不属于这六个**，也**不占六库页签**：它是按作者系列分卷的设计档案（每卷 9 件），每件带作者写好的中英文提示词，浏览页面独立在 `/ref_lookbook/mio`。单件图源站只发布一档（最长边约 418 px，没有大图目录），所以这个库的定位是「参考 + 提示词」，不是高分辨率出图素材——想要大图就靠它给的 prompt 重绘。
 
-当前版本 **v1.5.1**。每个版本新增了什么、修了什么，见[更新日志](更新日志.md)。
+另外两个节点不属于六库：`CharacterRecipe`（三合一角色配方）把脸部、服装、姿势合成一次取图，输出一张参考整图 + 中英文合成提示词；`MioGallery`（澪设计档案）单取一件，输出图 + 作者原版中英文提示词。
+
+当前版本 **v1.6.0**。每个版本新增了什么、修了什么，见[更新日志](更新日志.md)。
 
 ## 安装
 
@@ -47,6 +50,19 @@ Windows 下直接双击 `start_gallery.bat` 也行（没装 Python 时会提示�
 
 与 ComfyUI 模式共用同一份 `library/`：独立模式下看过的大图、节点里出过图的原图，都落在同一个 `library/<库>/png/`，两种启动方式互相通用。`GET /ref_lookbook/status` 可自检各库计数与缓存情况。
 
+## 澪设计档案（独立页面）
+
+`MioGallery` 对应 [霧島澪的设计档案](https://sleepyzone.online/mio-design-archive/)：43 卷 387 件，每件附作者写好的英文提示词与中文对照。
+
+它**不进六库页签**，走自己的页面——数据是「系列 → 卷 → 9 件」，跟六库的筛选网格不是一回事：
+
+- ComfyUI 里点节点按钮，弹窗内直接选图（与六库同一套 iframe 协议，选完回填 `mio_id`）
+- 独立启动时开 `http://127.0.0.1:8180/ref_lookbook/mio`；`#hair-01` 定位到某一卷，`#all` 看全量
+- 左栏卷目录 + 搜索（编号 / 名称 / 关键词 / 中文描述都能搜），右侧九宫格；点作品看大图与两个提示词，各带「复制」
+- ← → 切换上一件 / 下一件，Esc 关闭
+
+**画质上限**：源站单件只有一档（最长边约 418 px，`assets/full`、`assets/orig`、`assets/items` 全 404）。所以这个库适合当「参考构图 + 提示词模板」，不适合直接放大输出——要高清就把它的 prompt 丢进文生图重绘。
+
 ## 用法
 
 1. 添加节点：`image → Reference Gallery → 服装 / 服装动画 / 姿势 / 脸部 / 深度姿势 / 二次元图库`，以及三合一角色配方。
@@ -56,7 +72,8 @@ Windows 下直接双击 `start_gallery.bat` 也行（没装 Python 时会提示�
 5. 任意原生「加载图像」节点（如 `Load Image`）也能调这个图库：选中后原图落到 `ComfyUI/input/ref_<编号>.png` 并自动填进该节点的图像控件，同一素材反复导入只覆盖同一个文件。服装动画库因为与服装库共用编号，文件名带库前缀（`ref_anime-SPR-0001.png`），两库同编号素材能同时存在于 `input/`。
 6. 直接开 `?lib=pose&id=POS-SEXY-P001` 可定位到某条素材；再带 `&angle=斜45°`（二次元用 `&angle=线稿`）能直接切到该形态。
 7. 深度姿势库可以直接接 ControlNet：`DepthGallery` 的 `image` 输出就是灰度深度图，连到 `ControlNetApplyAdvanced` 的 `image` 即可，不需要再加预处理器（图已经是深度图，再过一遍 depth 预处理器等于重复处理）。姿势库与深度姿势库编号一一对应，`POS-SEXY-P031` 对应 `DEP-SEXY-P031`，想要「线稿控姿态」用姿势库、想要「深度控体积」用深度姿势库。
-8. 三合一配方节点 `CharacterRecipe`：脸、服装、姿势三行各自有按钮和缩略图，点哪个换哪个；`style_preset` 选风格方向盘（日系动漫 / 写实摄影 / 韩系半厚涂 / 角色设定图），`extra_prompt` 补细节。打开 `use_depth` 时姿势槽位自动改读深度库（`POS-` → `DEP-`），预览也跟着变，直接接 ControlNet depth。输出里 `reference_sheet` 是三张并排的参考整图，适合丢给 img2img 或作为视觉参考。
+8. 澪设计档案（`MioGallery`）走自己的页面：点节点上的按钮，弹窗里是「左栏卷目录 + 右侧九宫格」，点作品看大图与中英文提示词，两个「复制」按钮直接拿走去用。独立启动时也可以直接开 `http://127.0.0.1:8180/ref_lookbook/mio`，`#hair-01` / `#all` 可定位。
+9. 三合一配方节点 `CharacterRecipe`：脸、服装、姿势三行各自有按钮和缩略图，点哪个换哪个；`style_preset` 选风格方向盘（日系动漫 / 写实摄影 / 韩系半厚涂 / 角色设定图），`extra_prompt` 补细节。打开 `use_depth` 时姿势槽位自动改读深度库（`POS-` → `DEP-`），预览也跟着变，直接接 ControlNet depth。输出里 `reference_sheet` 是三张并排的参考整图，适合丢给 img2img 或作为视觉参考。
 
 ![图库弹窗](example_workflows/assets/ui/gallery-window.jpg)
 
@@ -124,6 +141,17 @@ LoRA 是 AHEKOT 的 VNCCS PoseStudio Qwen Image 2.1 v2.0：[Civitai](https://civ
 | `width` / `height` | 1024 / 1280 | 仅指定尺寸模式生效，8 的倍数，64–8192 |
 | `flip_horizontal` | 否 | 水平翻转，人物朝左 / 朝右互换 |
 
+`MioGallery` 的输出（多了作者原版提示词）：
+
+| 输出 | 类型 | 内容 |
+| --- | --- | --- |
+| `image` | IMAGE | 单件图，最长边约 418 px（源站上限） |
+| `width` / `height` | INT | 实际输出尺寸 |
+| `mio_id` | STRING | 编号，如 `C-06-02` |
+| `description` | STRING | 系列 / 卷主题 / 关键词 |
+| `prompt` | STRING | 作者原版英文提示词，可直接进 CLIP Text Encode |
+| `prompt_zh` | STRING | 作者原版中文提示词（逐条对照，不是机器翻译） |
+
 `CharacterRecipe` 的输出：
 
 | 输出 | 类型 | 内容 |
@@ -136,7 +164,7 @@ LoRA 是 AHEKOT 的 VNCCS PoseStudio Qwen Image 2.1 v2.0：[Civitai](https://civ
 
 配方节点的 `costume_library` 可切写实服装 / 服装动画（编号规则一致），`use_depth` 打开时姿势取同编号深度图。`pose_angle` 是姿势的五个机位。
 
-姿势与深度姿势节点额外有 `angle` 下拉（默认「正面」），二次元节点有 `variant` 下拉（默认「彩图」）。标签可能不完整，只作检索提示。这七个节点只提供参考图，本身不换装、不换脸。
+姿势与深度姿势节点额外有 `angle` 下拉（默认「正面」），二次元节点有 `variant` 下拉（默认「彩图」）。标签可能不完整，只作检索提示。这八个节点只提供参考图，本身不换装、不换脸。
 
 ## 图片怎么来
 
@@ -153,6 +181,8 @@ LoRA 是 AHEKOT 的 VNCCS PoseStudio Qwen Image 2.1 v2.0：[Civitai](https://civ
 | 深度姿势 | `ai-pose-depth-gallery.pages.dev/img/<文件名>.png` |
 | 二次元 | `charadb-2fi.pages.dev/img/<文件名>.jpg`（线稿为 `line/<文件名>.png`） |
 
+**澪设计档案例外**：源站没有更高清版本，所以这 387 张原始 JPEG（约 9 MB）直接随仓库内置在 `library/mio/thumbs/`，节点的「原图」字段指向的就是同一个文件——不重复存两份，也不缩到 360 转 WebP（那会让唯一的那档画质更差）。仓库对它是**原图与缩略图一起分发**，与六库只发缩略图不同，理由就是没有第二档可发。
+
 取图逻辑（`catalog.ensure_original`）：本机 `library/<库>/png/` 有就读，不联网 → 没有则取一次，先写 `.part` 再原子替换，校验文件头挡错误页和半截文件 → 失败时报错，信息里带完整地址和应放位置。
 
 默认只按单张取图：只有「浏览大图」和「节点出图」会取原图，共用 `library/<库>/png/` 缓存，任一处取过另一处直接命中。并发受限（缩略图 8、原图 12），同一张串行——12 是实测的吞吐拐点，再高没有收益，也不会把源站拖垮。
@@ -165,20 +195,21 @@ LoRA 是 AHEKOT 的 VNCCS PoseStudio Qwen Image 2.1 v2.0：[Civitai](https://civ
 comfyui-ref-lookbook/
 ├── 更新日志.md          # 每版新增与修复
 ├── library/
-│   ├── data/            # 六库中文索引、分类与元数据（约 3.3 MB）
+│   ├── data/            # 六库 + mio 中文索引、分类与元数据（约 3.9 MB）
 │   ├── costume/{thumbs,png,img}/
 │   ├── costume-anime/{thumbs,png,img}/
 │   ├── pose/{thumbs,png,img}/
 │   ├── face/{thumbs,png,img}/
 │   ├── depth/{thumbs,png,img}/
 │   ├── anime/{thumbs,png,img}/
+│   ├── mio/{thumbs,png}/  # 平铺库：原图=缩略图同一份，png/ 只留占位
 │   └── SOURCE.json      # 素材版本、数量与上游地址模板
-├── web/                 # ComfyUI 扩展、六库统一弹窗界面
+├── web/                 # ComfyUI 扩展、六库统一弹窗界面、mio 独立页面
 ├── server.py            # 独立 HTTP 服务（不开 ComfyUI 也能浏览）
 ├── start_gallery.bat    # Windows 双击启动
 ├── example_workflows/   # 示例工作流 + 说明 + 效果图
 ├── licenses/            # 上游参考项目的许可原文
-└── tests/               # 83 个 Python 测试 + 11 个前端测试
+└── tests/               # 98 个 Python 测试 + 11 个前端测试
 ```
 
 `<库>/thumbs/` 随仓库内置（8,411 张 WebP，离线开箱可浏览）；`<库>/png/`、`<库>/img/` 进 `.gitignore`，只留 `.gitkeep` 占位。原图一律运行时获取：你在弹窗里看过、或在节点上出过图的那张，就落进对应目录，之后不再下载。
@@ -203,6 +234,7 @@ comfyui-ref-lookbook/
 | 脸部 | [AIモデル顔データベース](https://ai-portrait-gallery.pages.dev/) | あぎ [@agi_aibusi](https://x.com/agi_aibusi) | CC0 | ✅（本仓库仍不分发） |
 | 深度姿势 | [デプスポーズ集 POSE-DB-02](https://ai-pose-depth-gallery.pages.dev/) | ギア [@giaaibusi](https://x.com/giaaibusi) | 与姿势集同条款：可参考使用，禁止再分发图片本体（含加工版） | ❌ |
 | 二次元 | [キャラ組み立てDB CharaDB](https://charadb-2fi.pages.dev/) | たき AI [@taki_auto](https://x.com/taki_auto) | 参考使用；禁止再分发、转载、转售图片本体 | ❌ |
+| 澪设计档案 | [Mio's Design Archive](https://sleepyzone.online/mio-design-archive/) | 霧島澪 [@Mio_2am](https://x.com/Mio_2am) | 站内未标注开放授权，按「个人参考使用」对待；本仓库只内置其单件图与提示词，不含合集图 | ❌ |
 | 服装动画 | [衣装集 アニメ版 COSTUME-ANIME-DB](https://ai-costume-anime-gallery.pages.dev/) | ギア [@giaaibusi](https://x.com/giaaibusi) | 可商用、可编辑、可参考；禁止再分发、转载、转售图片本体，禁止批量获取，不得用于表现真实人物或未成年人 | ❌ |
 
 六套素材全是 AI 生成，不含真实人物。姿势与脸部的中文标签、动作清单与内置缩略图取自 [sleepy-zone/ai-ref-library-cn](https://github.com/sleepy-zone/ai-ref-library-cn)——一个同样整理这三套素材的中文检索界面，只收录缩略图、不含原图；服装库的中文索引取自 [ai-costume-gallery-zh](https://github.com/wangweihong/ai-costume-gallery-zh)；深度姿势库的索引由姿势库派生、按深度站校对，缩略图取自深度站；二次元库与服装动画库的中文索引与分类取自同一中文项目的 anime 索引与 costume-anime 索引（[Deeyu/ai-costume-gallery-zh](https://github.com/Deeyu/ai-costume-gallery-zh)），缩略图分别取自 CharaDB 与动画服装站。
@@ -223,8 +255,9 @@ comfyui-ref-lookbook/
 
 - **原图与全尺寸预览不分发**（`library/**/{png,img}` 已进 `.gitignore`），运行时按单张取到你自己机器上，没有任何后台自动预取。
 - **缩略图随仓库内置属已知取舍**：上游「画像データそのもの（元サイズ・加工後を含む）の再配布は禁止」按字面涵盖缩略图，内置超出明示授权。权利人提出异议即移出，功能不受影响（见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)）。
+- 澪设计档案的 387 张图是该站**唯一的一档**（没有更高清原图可另发），所以随仓库内置；合集图（`assets/sheets/*.jpg`）不分发。作者未在站内标注开放授权，按个人参考对待，权利人提出异议即移出。
 - 二次分发、打包合集、在线服务请自行取得原作者授权，本仓库不是授权凭证。
-- 清理本地缓存：删 `library/{costume,costume-anime,pose,face,depth,anime}` 下的 `png`/`img` 即可（保留 `.gitkeep`）。
+- 清理本地缓存：删 `library/{costume,costume-anime,pose,face,depth,anime}` 下的 `png`/`img` 即可（保留 `.gitkeep`）。`library/mio/thumbs/` 是内置素材本身，删了要重新 `git checkout`。
 
 ## 验证
 
@@ -234,7 +267,7 @@ node --test tests/test_preview.mjs
 node --check web/ref_gallery.js && node --check web/gallery.mjs
 ```
 
-83 个 Python 测试覆盖索引完整性、深度图与姿势图逐条对齐、二次元线稿与彩图配对、服装动画与服装编号重合但路径互不干扰、缩略图逐条在库、路径穿越与越库访问拒绝、按视角 / 形态取图、上游地址模板（含线稿的 `line/` 路径）、缓存命中、离线提示、节点预览 URL 与错误回退、按需缓存的 remote 参数，外加独立 HTTP 服务的路由、白名单与穿越防护；11 个前端测试覆盖预览取图、视角联动、缩略图占位、旧请求不覆盖新选择，以及三合一配方节点的三槽位取图、深度开关联动与画布绘制。
+98 个 Python 测试覆盖索引完整性、深度图与姿势图逐条对齐、二次元线稿与彩图配对、服装动画与服装编号重合但路径互不干扰、缩略图逐条在库、路径穿越与越库访问拒绝、按视角 / 形态取图、上游地址模板（含线稿的 `line/` 路径）、缓存命中、离线提示、节点预览 URL 与错误回退、按需缓存的 remote 参数，澪设计档案的平铺结构（原图与缩略图同文件、JPEG 不重编码、43 卷覆盖全量、每条都带中英提示词）、它与六库编号零交集、独立页面路由与「不进整库下载」；外加独立 HTTP 服务的路由、白名单与穿越防护；11 个前端测试覆盖预览取图、视角联动、缩略图占位、旧请求不覆盖新选择，以及三合一配方节点的三槽位取图、深度开关联动与画布绘制。
 
 ## 权利联系
 

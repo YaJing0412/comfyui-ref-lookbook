@@ -125,3 +125,58 @@ class LibraryIndexTests(unittest.TestCase):
         rows = json.loads((ROOT / 'data/face-zh.json').read_text(encoding='utf-8'))
         self.assertEqual([row['id'] for row in rows], [f'FACE-{i + 1:04d}' for i in range(len(rows))])
         self.assertEqual(len({row['源ID'] for row in rows}), len(rows))
+
+class MioLibraryTests(unittest.TestCase):
+    """澪设计档案是平铺库：源站只有一档图，原图与缩略图是同一个文件，格式是原始 JPEG。
+
+    这些约束和六库（WebP 缩略图 + 按需取 png 原图）完全相反，所以单独测，不并进 LIBS。
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.rows = json.loads((ROOT / 'data/mio-zh.json').read_text(encoding='utf-8'))
+        cls.meta = json.loads((ROOT / 'data/meta-mio.json').read_text(encoding='utf-8'))
+
+    def test_counts_and_id_uniqueness(self):
+        self.assertEqual(len(self.rows), 387)
+        self.assertEqual(len({row['id'] for row in self.rows}), 387)
+        self.assertEqual({row['分类'] for row in self.rows}, {'发型', '服装', '姿势'})
+
+    def test_original_and_thumbnail_are_the_same_file(self):
+        """源站没有大图目录：两个字段必须指向同一个文件，否则等于把同一张图存两份。"""
+        for row in self.rows:
+            with self.subTest(id=row['id']):
+                self.assertEqual(row['原图'], row['缩略图'])
+                self.assertTrue(row['原图'].startswith('mio/thumbs/'), row['原图'])
+                self.assertTrue(row['原图'].endswith('.jpg'), '不重编码，保持源站 JPEG')
+
+    def test_every_file_is_bundled(self):
+        missing = [row['id'] for row in self.rows if not (ROOT / row['原图']).is_file()]
+        self.assertEqual(missing, [])
+
+    def test_thumbs_directory_has_no_stray_files(self):
+        expected = {Path(row['缩略图']).name for row in self.rows}
+        actual = {p.name for p in (ROOT / 'mio/thumbs').iterdir() if p.is_file() and p.name != '.gitkeep'}
+        self.assertEqual(actual, expected)
+
+    def test_every_item_carries_bilingual_prompts(self):
+        """独立页面的核心卖点就是这两个字段，缺一条就等于这条素材废了一半。"""
+        for row in self.rows:
+            with self.subTest(id=row['id']):
+                self.assertTrue(row['提示词'], row['id'])
+                self.assertTrue(row['提示词中文'], row['id'])
+                self.assertIn('1girl', row['提示词'])
+
+    def test_volumes_cover_every_record(self):
+        self.assertEqual(len(self.meta['volumes']), 43)
+        self.assertEqual(sum(volume['count'] for volume in self.meta['volumes']), len(self.rows))
+        self.assertEqual({row['卷slug'] for row in self.rows}, {volume['slug'] for volume in self.meta['volumes']})
+        self.assertEqual({volume['series_zh'] for volume in self.meta['volumes']}, {'发型', '服装', '姿势'})
+
+    def test_ids_encode_series_and_volume(self):
+        """H/C/P 前缀 + 卷号 + 序号：编号要能和 slug 对得上，否则页面按卷筛会漏件。"""
+        prefixes = {'发型': 'H', '服装': 'C', '姿势': 'P'}
+        for row in self.rows:
+            with self.subTest(id=row['id']):
+                self.assertEqual(row['id'].split('-')[0], prefixes[row['分类']])
+                self.assertEqual(row['id'].split('-')[1], f"{int(row['卷号']):02d}")

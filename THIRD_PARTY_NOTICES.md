@@ -2,7 +2,7 @@
 
 ## 素材来源
 
-六套素材来自原作者公开的 AI 作图参考图库；中文分类、动作描述、编号与内置缩略图，取自上游仓库 [sleepy-zone/ai-ref-library-cn](https://github.com/sleepy-zone/ai-ref-library-cn)、深度姿势站的源仓库 [Brilliant666/ai-image-gallery](https://github.com/Brilliant666/ai-image-gallery) 与中文项目 [Deeyu/ai-costume-gallery-zh](https://github.com/Deeyu/ai-costume-gallery-zh)。
+六套素材来自原作者公开的 AI 作图参考图库，另有一份独立的霧島澪设计档案（`mio` 库，见下表末行）；中文分类、动作描述、编号与内置缩略图，取自上游仓库 [sleepy-zone/ai-ref-library-cn](https://github.com/sleepy-zone/ai-ref-library-cn)、深度姿势站的源仓库 [Brilliant666/ai-image-gallery](https://github.com/Brilliant666/ai-image-gallery) 与中文项目 [Deeyu/ai-costume-gallery-zh](https://github.com/Deeyu/ai-costume-gallery-zh)。
 
 | 库 | 原始站点 | 记录 | 授权原文要点 | 能否再分发图片 |
 | --- | --- | --- | --- | --- |
@@ -12,10 +12,11 @@
 | 脸部 | [AIモデル顔データベース](https://ai-portrait-gallery.pages.dev/) | 1,498 张 | CC0で自由に配布 | ✅ 可以（原图仍不分发） |
 | 深度姿势 | [デプスポーズ集 POSE-DB-02](https://ai-pose-depth-gallery.pages.dev/) | 288 动作 / 1,439 张 | 同上（与姿势集同作者、同条款） | ❌ 禁止（含加工版） |
 | 二次元 | [キャラ組み立てDB CharaDB](https://charadb-2fi.pages.dev/) | 1,027 条 / 1,308 张（姿势另含 281 张线稿） | 参考利用可；画像そのものの再配布・転載・再販は禁止 | ❌ 禁止（含加工版） |
+| 澪设计档案 | [Mio's Design Archive](https://sleepyzone.online/mio-design-archive/) | 43 卷 / 387 件 | 站内未标注开放授权条款（页面只有 X 与网盘下载入口），按「个人参考使用、不再分发」对待：本项目只内置单件图（其唯一一档）与作者原版提示词，合集图 `assets/sheets/*.jpg` 不分发；权利人提出异议即整库移出 | ⚠️ 未明示（按个人参考处理） |
 
-六个库全部为 AI 生成内容，不含真实人物。数据快照：服装 2026-10-29，姿势与脸部 2026-10-30，深度 2026-10-31，二次元与服装动画 2026-11-02。服装动画为上游「服装库动画版」，与服装库同分类同编号规则但是另一批图，两版编号各自独立、互不补齐。
+六个库 + 澪设计档案全部为 AI 生成内容，不含真实人物。数据快照：服装 2026-10-29，姿势与脸部 2026-10-30，深度 2026-10-31，二次元与服装动画 2026-11-02，澪设计档案 2026-11-15（站点 `data.js` 的 generated 字段）。服装动画为上游「服装库动画版」，与服装库同分类同编号规则但是另一批图，两版编号各自独立、互不补齐。
 
-原作者：服装、服装动画、姿势、深度姿势四站均为 ギア（[@giaaibusi](https://x.com/giaaibusi)），脸部站标注运营者为 あぎ（[@agi_aibusi](https://x.com/agi_aibusi)），二次元站为 たき AI（[@taki_auto](https://x.com/taki_auto)）。感谢三位把素材公开出来。本项目保留原始 ID、日文 / 英文关键词与素材路径，另附中文翻译供检索；本项目是独立的本地图库实践，不代表原作者的官方版本或背书。
+原作者：服装、服装动画、姿势、深度姿势四站均为 ギア（[@giaaibusi](https://x.com/giaaibusi)），脸部站标注运营者为 あぎ（[@agi_aibusi](https://x.com/agi_aibusi)），二次元站为 たき AI（[@taki_auto](https://x.com/taki_auto)），澪设计档案为 霧島澪（[@Mio_2am](https://x.com/Mio_2am)）。感谢四位把素材公开出来。本项目保留原始 ID、日文 / 英文关键词与素材路径，另附中文翻译供检索；本项目是独立的本地图库实践，不代表原作者的官方版本或背书。
 
 ## 数据来源
 
@@ -31,7 +32,9 @@
 
 **缩略图随仓库内置**（`library/<库>/thumbs/`，8,411 张 WebP，约 60 MB）：为离线浏览，服装 / 姿势 / 脸部三库原样取自 `ai-ref-library-cn` 的内嵌缩略图（200×250），深度库与二次元库取自各自源站缩略图并统一转码为 360 px WebP，服装动画库取自其源站 360 px 缩略图，画面内容均未改动。需要明确：上表「画像データそのもの（元サイズ・加工後を含む）の再配布は禁止」按字面同样涵盖缩略图，内置缩略图**超出了上游明示的授权范围**，这是本项目的已知取舍；作为对冲，取图链路保留「按单张从源站取一次并缓存」的完整回退，权利人提出异议时会把缩略图移出仓库，功能不受影响。
 
-原图按单张请求，没有后台自动预取；并发受限、同一张串行，不会把源站排成无间隔的批量抓取。
+**澪设计档案是唯一的例外，原因必须说清**：该站单件图只有一档（最长边约 418 px，`assets/full`、`assets/orig`、`assets/items` 均 404），不存在「原图另发、缩略图随便」的区分——要内置缩略图，内置的就是原图本身。所以这 387 张随仓库内置（`library/mio/thumbs/`，约 9 MB），节点「原图」字段指向同一文件，不再重复存一份。合集图（`assets/sheets/*.jpg`，每卷 9 件拼图）不内置、不分发。
+
+原图按单张请求，没有后台自动预取；并发受限、同一张串行，不会把源站排成无间隔的批量抓取。澪设计档案的一次性抓取是构建期的 387 张（12 并发、约 20 KB/张），不是运行时行为。
 
 ## 许可范围
 

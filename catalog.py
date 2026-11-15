@@ -3,9 +3,13 @@
 六个图库共用根目录 library/，每个库一个同名子目录，内部结构完全一致：
   library/{costume,costume-anime,pose,face,depth,anime}/{thumbs,png,img}
 
-仓库随包发行缩略图（thumbs，8,411 张 WebP，约 60 MB：服装 / 姿势 / 脸部三库原样取自上游仓库
-sleepy-zone/ai-ref-library-cn 的内嵌缩略图，深度库、二次元库与服装动画库取自各自源站缩略图
-并转 360 px WebP，画面均未改）：
+第七个库 mio（霧島澪设计档案，387 件）是平铺的，不走 png/img 两档：
+  library/mio/{thumbs,png}   # 源站只有一档图，原图=缩略图同放 thumbs/，png/ 只留占位
+  它不进六库页签，页面独立在 /ref_lookbook/mio，节点是独立的 MioGallery。
+
+仓库随包发行缩略图（thumbs，8,411 张 WebP 约 60 MB + mio 387 张原始 JPEG 约 9 MB：服装 / 姿势 /
+脸部三库原样取自上游仓库 sleepy-zone/ai-ref-library-cn 的内嵌缩略图，深度库、二次元库与服装动画库
+取自各自源站缩略图并转 360 px WebP，画面均未改；mio 那 387 张不转码，因为它同时是唯一的原图档）：
   * 图库界面与节点预览读内置缩略图，离线开箱可览；
   * 原图（png）与全尺寸预览（img）不进仓库：节点出图或看大图时按
     “本地优先 → 上游下载并缓存到 library/{库}/png/”的顺序取，用过的原图落盘后完全离线；
@@ -67,8 +71,23 @@ LIBRARIES = {
               'origin': 'https://charadb-2fi.pages.dev/img/{stem}.jpg',
               'line_origin': 'https://charadb-2fi.pages.dev/line/{stem}.png',
               'thumb': 'https://charadb-2fi.pages.dev/thumb/{stem}.webp'},
+    # 霧島澪设计档案：作者系列型（发型 6 卷 / 服装 13 卷 / 姿势 24 卷，每卷 9 件，共 387 件），
+    # 编号 H-01-01 / C-03-05 / P-20-07，与六库任何一个都不重合。**不进六库页签**，页面独立挂在
+    # /ref_lookbook/mio，节点是独立的 MioGallery。
+    # 两个特殊之处：
+    #   1. 源站只有一档单件图（最长边约 418 px，无大图目录）→ flat=True：原图与缩略图是同一份
+    #      文件，都落 thumbs/，不重复存两份、也不缩到 THUMB_WIDTH 转 WebP（那会让唯一的画质更差）。
+    #   2. 每件自带作者写好的中英文提示词（索引里的「提示词」「提示词中文」），六库没有这项。
+    'mio': {'label': '澪设计档案', 'index': 'mio-zh.json', 'meta': 'meta-mio.json', 'base': 'mio',
+            'site': 'https://sleepyzone.online/mio-design-archive/',
+            'origin': 'https://sleepyzone.online/mio-design-archive/assets/tiles/{stem}.jpg',
+            'thumb': 'https://sleepyzone.online/mio-design-archive/assets/tiles/{stem}.jpg',
+            'flat': True, 'standalone': True},
 }
 DEFAULT_LIBRARY = 'costume'
+# 六库 = 图库页签上那六个，也是「整库下载」和启动统计的口径。
+# mio 不在其中：它是独立页面 + 独立节点，素材已随仓库内置，批量下载对它没有意义。
+TAB_LIBRARIES = ('costume', 'costume-anime', 'pose', 'face', 'depth', 'anime')
 
 # 断网 / 内网环境：设为 1 时只用本地原图，缺失直接报错并给出下载地址。
 OFFLINE_ENV = 'COMFYUI_REF_LOOKBOOK_OFFLINE'
@@ -175,7 +194,12 @@ def pick(row, field, angle=None):
 
 
 def _relative(library, kind, filename):
-    return f'{library_info(library)["base"]}/{kind}/{filename}'
+    info = library_info(library)
+    if info.get('flat') and kind in ('png', 'thumbs'):
+        # flat 库（目前只有 mio）：源站只有一档分辨率，原图与缩略图是同一份文件，
+        # 都放 thumbs/。否则会为了「原图目录」再存一份一模一样的，或把唯一的画质缩成 360。
+        kind = 'thumbs'
+    return f'{info["base"]}/{kind}/{filename}'
 
 
 def _allowlisted(library, relative):
@@ -316,13 +340,13 @@ def ensure_thumb(library, relative):
             return target
         try:
             with _thumb_slots:
-                _fetch_thumb(url, target)
+                _fetch_thumb(url, target, transcode=not library_info(library).get('flat'))
         except (urllib.error.URLError, urllib.error.HTTPError, OSError, ValueError) as exc:
             raise FileNotFoundError(f'{hint}\n自动获取失败：{exc}') from None
     return target
 
 
-def _fetch_thumb(url, target):
+def _fetch_thumb(url, target, transcode=True):
     target.parent.mkdir(parents=True, exist_ok=True)
     part = target.with_name(target.name + '.part')
     request = urllib.request.Request(url, headers={'User-Agent': USER_AGENT})
@@ -333,7 +357,11 @@ def _fetch_thumb(url, target):
             raise ValueError('下载内容过小，疑似失败')
         if not _looks_like_image(payload):
             raise ValueError('上游返回的不是图片，可能被网络劫持或文件已下架')
-        _write_thumb(payload, part)
+        if transcode:
+            _write_thumb(payload, part)
+        else:
+            # flat 库：这份文件同时是原图，转码只会掉画质，原样落盘。
+            part.write_bytes(payload)
         os.replace(part, target)
     except BaseException:
         part.unlink(missing_ok=True)
@@ -365,7 +393,17 @@ def missing_originals(library=DEFAULT_LIBRARY):
     return total
 
 
+def volumes(library='mio'):
+    """按卷组织的库（目前只有 mio）返回卷清单，供独立页面按「系列 → 卷」浏览。"""
+    return meta(library).get('volumes') or []
+
+
+def flat(library):
+    return bool(library_info(library).get('flat'))
+
+
 __all__ = ['ANGLES', 'DEFAULT_LIBRARY', 'FIELDS', 'LIBRARIES', 'LIBRARY', 'ROOT', 'OFFLINE_ENV',
-           'THUMB_WIDTH', 'asset', 'asset_by_id', 'costume', 'describe', 'ensure_original',
-           'ensure_thumb', 'index', 'item', 'library_info', 'local_path', 'meta', 'missing_originals',
-           'offline', 'origin_url', 'pick', 'records', 'site', 'thumb_url']
+           'TAB_LIBRARIES', 'THUMB_WIDTH', 'asset', 'asset_by_id', 'costume', 'describe',
+           'ensure_original', 'ensure_thumb', 'flat', 'index', 'item', 'library_info', 'local_path',
+           'meta', 'missing_originals', 'offline', 'origin_url', 'pick', 'records', 'site',
+           'thumb_url', 'variant_values', 'volumes']

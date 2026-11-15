@@ -41,7 +41,7 @@ else:  # 被测试以包方式加载
     from . import bulk
 
 # 允许直接下发的静态文件：与 ComfyUI 版路由同一份白名单，外加页面本体。
-WEB_FILES = ('gallery.mjs', 'style.css', 'icon.svg', 'ref_gallery.js')
+WEB_FILES = ('gallery.mjs', 'style.css', 'icon.svg', 'ref_gallery.js', 'mio.mjs', 'mio.css')
 CONTENT_TYPES = {'.webp': 'image/webp', '.svg': 'image/svg+xml', '.mjs': 'text/javascript; charset=utf-8',
                  '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
                  '.html': 'text/html; charset=utf-8', '.json': 'application/json; charset=utf-8',
@@ -131,6 +131,10 @@ class Handler(BaseHTTPRequestHandler):
                 self.end_headers()
             elif method == 'GET' and path == '/ref_lookbook/gallery':
                 self._file(ROOT / 'web' / 'gallery.html', cache='no-cache')
+            elif method == 'GET' and path in ('/ref_lookbook/mio', '/ref_lookbook/mio/'):
+                # 霧島澪设计档案：独立页面，不复用六库页签（数据形态是「系列 → 卷 → 9 件」，
+                # 且每件带作者原版提示词，与六库的筛选网格不是一回事）。
+                self._file(ROOT / 'web' / 'mio.html', cache='no-cache')
             elif method == 'GET' and path.startswith('/ref_lookbook/web/'):
                 name = path.rsplit('/', 1)[-1]
                 if name not in WEB_FILES:

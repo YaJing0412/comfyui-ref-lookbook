@@ -1,4 +1,6 @@
-"""ComfyUI reference gallery: 服装 / 服装动画 / 姿势 / 脸部 / 深度姿势 / 二次元。随仓库发行索引与内置缩略图，原图按需向作者站点取一次。"""
+"""ComfyUI reference gallery: 服装 / 服装动画 / 姿势 / 脸部 / 深度姿势 / 二次元，
+外加独立的霧島澪设计档案（带作者原版提示词）。随仓库发行索引与内置缩略图，原图按需向作者站点取一次。
+"""
 import asyncio
 import re
 import shutil
@@ -376,16 +378,24 @@ async def status_route(request):
             report['libraries'][name] = {'label': LIBRARIES[name]['label'], 'error': str(exc)}
     return web.json_response(report)
 
+# 允许下发的静态文件白名单：与 server.py 的 WEB_FILES 同一份，加文件记得两边一起改。
+WEB_FILES = ('gallery.mjs', 'style.css', 'icon.svg', 'ref_gallery.js', 'mio.mjs', 'mio.css')
+
 @routes.get('/ref_lookbook/web/{filename}')
 async def web_route(request):
     filename = request.match_info['filename']
-    if filename not in ('gallery.mjs', 'style.css', 'icon.svg', 'ref_gallery.js'):
+    if filename not in WEB_FILES:
         raise web.HTTPNotFound()
     return web.FileResponse(ROOT / 'web' / filename, headers={'Cache-Control': 'no-cache'})
 
 @routes.get('/ref_lookbook/gallery')
 async def gallery_route(request):
     return web.FileResponse(ROOT / 'web' / 'gallery.html', headers={'Cache-Control': 'no-cache'})
+
+@routes.get('/ref_lookbook/mio')
+async def mio_route(request):
+    """霧島澪设计档案：独立页面，不进六库页签（数据是「系列 → 卷 → 9 件」+ 作者原版提示词）。"""
+    return web.FileResponse(ROOT / 'web' / 'mio.html', headers={'Cache-Control': 'no-cache'})
 
 class AnimeGallery(_GalleryNode):
     """二次元库：发型 / 眼睛 / 服装 / 姿势混在一个库里，靠「分类」区分，姿势额外带线稿。"""
@@ -403,6 +413,36 @@ class AnimeGallery(_GalleryNode):
 
     def load_anime(self, **values):
         return self._load(**values)
+
+
+class MioGallery(_GalleryNode):
+    """霧島澪设计档案：作者系列型素材（发型 6 卷 / 服装 13 卷 / 姿势 24 卷，共 387 件）。
+
+    与六个图库的两点不同，决定了它是独立节点而不是第七个页签：
+      1. 每件自带作者写好的中英文提示词，所以比别的节点多两个 STRING 输出；
+      2. 源站只有一档图（最长边约 418 px，没有大图目录），定位是「参考 + 提示词」，
+         不是高分辨率出图素材——要放大出图就靠 prompt 自己重绘。
+    """
+
+    LIBRARY = 'mio'
+    ID_WIDGET = 'mio_id'
+    DEFAULT_ID = 'H-01-01'
+    FUNCTION = 'load_mio'
+    ID_TOOLTIP = '点击浏览澪设计档案，按系列、卷或编号搜索；每件带作者原版中英文提示词。'
+    RETURN_TYPES = ('IMAGE', 'INT', 'INT', 'STRING', 'STRING', 'STRING', 'STRING')
+    RETURN_NAMES = ('image', 'width', 'height', 'mio_id', 'description', 'prompt', 'prompt_zh')
+    DESCRIPTION = '霧島澪设计档案：43 卷 387 件（发型 / 服装 / 姿势），每件附作者原版中英文提示词。'
+
+    def load_mio(self, **values):
+        item_id = str(values[self.ID_WIDGET])
+        row = item(self.LIBRARY, item_id)
+        img = _load_rgb(self.LIBRARY, row, None,
+                        values.get('resize_mode', RESIZE_MODES[0]),
+                        values.get('width', 1024), values.get('height', 1280),
+                        bool(values.get('flip_horizontal')))
+        width, height = img.size
+        return (_to_tensor(img), width, height, item_id, describe(row),
+                row.get('提示词') or '', row.get('提示词中文') or '')
 
 
 class CharacterRecipe(_GalleryNode):
@@ -557,7 +597,7 @@ class CharacterRecipe(_GalleryNode):
 NODE_CLASS_MAPPINGS = {'CostumeGallery': CostumeGallery, 'CostumeAnimeGallery': CostumeAnimeGallery,
                        'PoseGallery': PoseGallery, 'FaceGallery': FaceGallery,
                        'DepthGallery': DepthGallery, 'AnimeGallery': AnimeGallery,
-                       'CharacterRecipe': CharacterRecipe}
+                       'MioGallery': MioGallery, 'CharacterRecipe': CharacterRecipe}
 NODE_DISPLAY_NAME_MAPPINGS = {
     'CostumeGallery': 'Costume Gallery 服装图库',
     'CostumeAnimeGallery': 'Costume Anime Gallery 服装动画图库',
@@ -565,6 +605,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     'FaceGallery': 'Face Gallery 脸部图库',
     'DepthGallery': 'Depth Gallery 深度姿势图库',
     'AnimeGallery': 'Anime Gallery 二次元图库',
+    'MioGallery': 'Mio Gallery 澪设计档案',
     'CharacterRecipe': 'Character Recipe 三合一角色配方',
 }
 WEB_DIRECTORY = './web'

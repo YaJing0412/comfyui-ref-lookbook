@@ -105,7 +105,36 @@ class ServerTests(unittest.TestCase):
         report = json.loads(body)
         self.assertEqual(status, 200)
         self.assertEqual(set(report['libraries']),
-                         {'costume', 'costume-anime', 'pose', 'face', 'depth', 'anime'})
+                         {'costume', 'costume-anime', 'pose', 'face', 'depth', 'anime', 'mio'})
+
+    def test_mio_page_is_standalone_and_served(self):
+        """mio 有独立页面（不进六库页签）：正反斜杠两种写法都能开，页面引用都是绝对路径。"""
+        for path in ('/ref_lookbook/mio', '/ref_lookbook/mio/'):
+            status, headers, body = get(path)
+            with self.subTest(path=path):
+                self.assertEqual(status, 200)
+                self.assertIn('text/html', headers['Content-Type'])
+                self.assertIn('设计档案', body.decode('utf-8'))
+        for name in ('mio.mjs', 'mio.css'):
+            self.assertEqual(get(f'/ref_lookbook/web/{name}')[0], 200, name)
+
+    def test_mio_catalog_and_jpeg_asset(self):
+        status, _, body = get('/ref_lookbook/catalog/mio')
+        payload = json.loads(body)
+        self.assertEqual(status, 200)
+        self.assertEqual(len(payload['records']), 387)
+        self.assertEqual(len(payload['meta']['volumes']), 43)
+        status, headers, _ = get('/ref_lookbook/assets/mio/thumbs/hair-01-01.jpg')
+        self.assertEqual(status, 200)
+        self.assertEqual(headers['Content-Type'], 'image/jpeg')
+
+    def test_mio_is_excluded_from_bulk_download(self):
+        """mio 的图随仓库内置，整库下载不该把它算进去（否则用户会以为还要下 387 张）。"""
+        status, _, body = get('/ref_lookbook/fetch-all')
+        plan = json.loads(body)
+        self.assertEqual(status, 200)
+        self.assertEqual(len(plan['libraries']), 6)
+        self.assertNotIn('mio', plan['libraries'])
 
 
 class ExportTests(unittest.TestCase):

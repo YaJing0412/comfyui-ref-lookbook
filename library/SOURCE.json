@@ -30,7 +30,8 @@
       "pose/thumbs",
       "face/thumbs",
       "depth/thumbs",
-      "anime/thumbs"
+      "anime/thumbs",
+      "mio/thumbs"
     ],
     "not_shipped": [
       "png",
@@ -108,9 +109,22 @@
       "thumb_template": "https://ai-costume-anime-gallery.pages.dev/thumbs/{stem}.webp",
       "license": "可商用 / 可编辑 / 可参考（署名可选）；禁止再分发、转载、转售图片本体（含加工版）；禁止批量获取；不得用于表现真实人物或未成年人",
       "note": "上游「服装库动画版」：与 costume 库同一套 8 个分类、同一套编号规则（SPR / SUM / AUT / WIN / LNG / PTY / SWM / SXY），但是另一批图，数量 1,320 与写实版 1,407 不同，上游两版独立编号、互不补齐 → 独立成库而不是形态维度；因编号空间重合，导入 ComfyUI input 目录时文件名带 anime- 前缀"
+    },
+    "mio": {
+      "records": 387,
+      "images": 387,
+      "volumes": 43,
+      "index": "data/mio-zh.json",
+      "meta": "data/meta-mio.json",
+      "original_site": "https://sleepyzone.online/mio-design-archive/",
+      "origin_template": "https://sleepyzone.online/mio-design-archive/assets/tiles/{stem}.jpg",
+      "thumb_template": "https://sleepyzone.online/mio-design-archive/assets/tiles/{stem}.jpg",
+      "license": "站内未标注开放授权，按个人参考使用；本仓库只内置单件图与作者原版提示词，不含合集图",
+      "note": "平铺库：源站无更高清单件（最长边约 418 px），原图与缩略图是同一份文件，不重复存也不转码；不进六库页签，页面独立在 /ref_lookbook/mio",
+      "author": "霧島澪 @Mio_2am"
     }
   },
-  "records_total": 5828,
+  "records_total": 6215,
   "images_total": 8411,
   "chinese_index_source": "ai-ref-library-cn (pose.js / face.js 中文标签与编号) + ai-costume-gallery-zh (anime/data/anime-zh.json、costume-anime/data/costume-zh.json)",
   "anime_reference": {

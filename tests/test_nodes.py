@@ -181,10 +181,10 @@ class CostumeAnimeTests(unittest.TestCase):
 
 
 class RegistrationTests(unittest.TestCase):
-    def test_seven_nodes_are_registered(self):
+    def test_eight_nodes_are_registered(self):
         self.assertEqual(set(nodes.NODE_CLASS_MAPPINGS),
                          {'CostumeGallery', 'CostumeAnimeGallery', 'PoseGallery', 'FaceGallery', 'DepthGallery',
-                          'AnimeGallery', 'CharacterRecipe'})
+                          'AnimeGallery', 'MioGallery', 'CharacterRecipe'})
         for key in nodes.NODE_CLASS_MAPPINGS:
             with self.subTest(node=key):
                 self.assertIn(key, nodes.NODE_DISPLAY_NAME_MAPPINGS)
@@ -357,6 +357,40 @@ class CacheOnDemandTests(unittest.TestCase):
                     self.assertEqual(seen[0], (kind, kind in ('png', 'thumbs')))
         finally:
             nodes.asset_by_id = original
+
+
+class MioGalleryTests(unittest.TestCase):
+    """澪设计档案节点比别的图库多两个输出：作者原版的英文 / 中文提示词。"""
+
+    def test_outputs_are_seven_and_named(self):
+        cls = nodes.MioGallery
+        self.assertEqual(cls.RETURN_NAMES,
+                         ('image', 'width', 'height', 'mio_id', 'description', 'prompt', 'prompt_zh'))
+        self.assertEqual(len(cls.RETURN_TYPES), len(cls.RETURN_NAMES))
+
+    def test_no_variant_dimension(self):
+        """这库每个编号只有一张图，不该冒出 angle / variant 控件。"""
+        optional = nodes.MioGallery.INPUT_TYPES()['optional']
+        self.assertNotIn('angle', optional)
+        self.assertNotIn('variant', optional)
+        self.assertIn('resize_mode', optional)
+
+    def test_records_carry_the_prompts_through(self):
+        row = nodes.item('mio', 'C-06-02')
+        self.assertTrue(row['提示词'].startswith('1girl'))
+        self.assertTrue(row['提示词中文'])
+        self.assertEqual(row['分类'], '服装')
+
+    def test_validate_accepts_real_id_and_rejects_unknown(self):
+        self.assertTrue(nodes.MioGallery.VALIDATE_INPUTS(mio_id='H-01-01'))
+        self.assertIsNot(nodes.MioGallery.VALIDATE_INPUTS(mio_id='NOPE-9'), True)
+
+    def test_ids_do_not_collide_with_other_libraries(self):
+        """mio 用 H-01-01 这种短编号，六库用 SPR-0001 / ANE-H001 / POS-SEXY-P001，不该撞。"""
+        other = set()
+        for library in ('costume', 'costume-anime', 'pose', 'face', 'depth', 'anime'):
+            other |= {row['id'] for row in nodes.records(library)}
+        self.assertFalse({row['id'] for row in nodes.records('mio')} & other)
 
 
 if __name__ == '__main__':

@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>霧島澪 · 设计档案｜发型 / 服装 / 姿势 与作者原版提示词</title>
+  <meta name="description" content="霧島澪（@Mio_2am）的发型、服装与姿势设计档案：43 卷 387 件，每件带作者写好的中英文提示词。本地浏览，可直接复制到 ComfyUI。">
+  <meta name="color-scheme" content="light">
+  <link rel="icon" href="/ref_lookbook/web/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/ref_lookbook/web/mio.css">
+  <script src="/ref_lookbook/web/mio.mjs" type="module"></script>
+</head>
+<body data-view="volume">
+  <header class="bar">
+    <a class="brand" href="/ref_lookbook/mio">霧島澪 <span>设计档案</span></a>
+    <p class="stat" id="stat">正在读取…</p>
+    <nav aria-label="站点">
+      <a href="/ref_lookbook/gallery">参考图库</a>
+      <a href="https://x.com/Mio_2am" target="_blank" rel="noopener">原作者 @Mio_2am</a>
+    </nav>
+  </header>
+
+  <div class="shell">
+    <aside class="rail" aria-label="卷目录">
+      <label class="search"><span>搜索</span>
+        <input id="q" type="search" placeholder="长发、排球、H-01-01" autocomplete="off">
+      </label>
+      <button id="all" class="all" type="button">全部作品 <span id="all-count"></span></button>
+      <nav id="volumes" class="volumes"></nav>
+      <p class="rail-note">图片最长边约 400–418 px，是源站单件的最高清版本；每件的提示词为作者原文。</p>
+    </aside>
+
+    <main>
+      <header class="head" id="head">
+        <p class="eyebrow" id="head-eyebrow"></p>
+        <h1 id="head-title">正在加载</h1>
+        <p class="lede" id="head-lede"></p>
+        <p class="head-meta" id="head-meta"></p>
+      </header>
+      <section id="grid" class="grid" aria-label="作品"></section>
+      <p id="empty" class="empty" hidden>没有匹配的作品。换更短的关键词，或点左侧「全部作品」。</p>
+      <button id="more" class="more" type="button" hidden>加载更多</button>
+    </main>
+  </div>
+
+  <dialog id="viewer" aria-labelledby="v-title">
+    <div class="sheet">
+      <figure class="figure">
+        <img id="v-img" alt="">
+        <figcaption id="v-caption"></figcaption>
+      </figure>
+      <div class="panel">
+        <button id="v-close" class="close" type="button" aria-label="关闭">×</button>
+        <p class="eyebrow" id="v-eyebrow"></p>
+        <h2 id="v-title"></h2>
+        <p class="desc" id="v-desc"></p>
+
+        <div class="prompt-block">
+          <div class="prompt-head"><h3>英文提示词</h3><button type="button" data-copy="en">复制</button></div>
+          <textarea id="v-prompt" readonly rows="5" spellcheck="false"></textarea>
+        </div>
+        <div class="prompt-block">
+          <div class="prompt-head"><h3>中文提示词</h3><button type="button" data-copy="zh">复制</button></div>
+          <textarea id="v-prompt-zh" readonly rows="4" spellcheck="false"></textarea>
+        </div>
+
+        <p class="meta" id="v-meta"></p>
+        <div class="actions">
+          <button id="v-use" class="primary" type="button" hidden>使用此素材 → ComfyUI</button>
+          <a id="v-source" target="_blank" rel="noopener">查看作者原推</a>
+          <button id="v-copy-id" type="button">复制编号</button>
+        </div>
+        <div class="paging"><button id="v-prev" type="button">上一个</button><button id="v-next" type="button">下一个</button></div>
+        <small>← → 切换 · Esc 关闭</small>
+      </div>
+    </div>
+  </dialog>
+
+  <footer>
+    <p>素材与提示词作者：<a href="https://x.com/Mio_2am" target="_blank" rel="noopener">霧島澪 @Mio_2am</a>，原站 <a href="https://sleepyzone.online/mio-design-archive/" target="_blank" rel="noopener">sleepyzone.online/mio-design-archive</a>。</p>
+    <p>本页是本地浏览与检索的整理，不代表作者官方版本；图片与提示词版权归原作者，本仓库不授予再分发权。</p>
+  </footer>
+</body>
+</html>

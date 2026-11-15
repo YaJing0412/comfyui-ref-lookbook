@@ -52,12 +52,23 @@ const LIBRARIES = {
         button: "选姿势（跟随深度开关）", depthIdWidget: "use_depth" },
     ],
   },
+  // 霧島澪设计档案：布局是「系列 → 卷 → 9 件」且每件带作者原版提示词，
+  // 所以挂独立页面 /ref_lookbook/mio，不塞进六库页签（page 字段）。
+  MioGallery: {
+    library: "mio",
+    idWidget: "mio_id",
+    label: "澪设计档案",
+    button: "浏览澪设计档案 · 发型 / 服装 / 姿势",
+    page: "mio",
+    useLabel: "使用此作品",
+  },
 };
 
 let activeDialog = null;
 
 // 六个节点与「任意加载图像节点」共用同一个选择器：图库页里可以随时切库。
-function openGalleryDialog({ library, title, onSelect }) {
+// page：某些库有独立页面（目前只有 mio），此时直接开那个页面，不带 ?lib= 参数。
+function openGalleryDialog({ library, title, onSelect, page }) {
   activeDialog?.close();
   let frame = null;
 
@@ -78,7 +89,9 @@ function openGalleryDialog({ library, title, onSelect }) {
   header.append(label, done);
 
   frame = document.createElement("iframe");
-  frame.src = api.apiURL(`/ref_lookbook/gallery?lib=${library}`);
+  frame.src = page
+    ? api.apiURL(`/ref_lookbook/${page}`)
+    : api.apiURL(`/ref_lookbook/gallery?lib=${library}`);
   frame.title = "参考图库";
   frame.style.cssText = "width:100%;height:calc(100% - 48px);border:0;";
   dialog.append(header, frame);
@@ -257,9 +270,11 @@ app.registerExtension({
       bind(angleWidget);
 
       function openPicker() {
+        const useLabel = config.useLabel || `使用此${config.label}`;
         openGalleryDialog({
           library: config.library,
-          title: `参考图库 · 选择${config.label}后点击「使用此${config.label}」`,
+          page: config.page,
+          title: `参考图库 · 选择${config.label}后点击「${useLabel}」`,
           onSelect: (data) => {
             if (data.library && data.library !== config.library) return;
             value.value = data.id;

@@ -1,6 +1,6 @@
 # 图库目录
 
-本目录随仓库发行的是**中文索引与分类数据**（`data/`，约 3.3 MB）与**内置缩略图**（`<库>/thumbs/`，8,411 张 WebP，约 60 MB；前三库原样取自 [ai-ref-library-cn](https://github.com/sleepy-zone/ai-ref-library-cn)，深度库取自深度站、二次元库取自 CharaDB，均转 360 px WebP；服装动画库源站缩略图就是 360×540，原样落盘。离线开箱可浏览）：
+本目录随仓库发行的是**中文索引与分类数据**（`data/`，约 3.9 MB）与**内置缩略图**（`<库>/thumbs/`，8,411 张 WebP 约 60 MB + mio 387 张 JPEG 约 9 MB；前三库原样取自 [ai-ref-library-cn](https://github.com/sleepy-zone/ai-ref-library-cn)，深度库取自深度站、二次元库取自 CharaDB，均转 360 px WebP；服装动画库源站缩略图就是 360×540，原样落盘。离线开箱可浏览）：
 
 | 库 | 记录 | 索引 | 缩略图（内置） | 原图 / 预览（运行时缓存） |
 | --- | --- | --- | --- | --- |
@@ -10,8 +10,11 @@
 | 脸部 | 1,498 张 | `data/face-zh.json` | `face/thumbs/` | `face/{png,img}/` |
 | 深度姿势 | 288 个动作 / 1,439 张 | `data/depth-zh.json` | `depth/thumbs/` | `depth/{png,img}/` |
 | 二次元 | 1,027 条 / 1,308 张（姿势另含线稿） | `data/anime-zh.json` | `anime/thumbs/` | `anime/{png,img}/` |
+| 澪设计档案 | 387 件 / 43 卷 | `data/mio-zh.json` + `data/meta-mio.json` | `mio/thumbs/`（JPEG，同时就是原图） | `mio/png/`（只留占位） |
 
 六个库目录结构完全一致：`library/<库>/{thumbs,png,img}/`，没有哪个库平铺在 `library/` 根下。
+
+`mio` 是唯一的例外：它只有 `{thumbs,png}` 两级，**没有 img**，而且 `thumbs/` 里的图就是原图——源站对这个库只发布一档（最长边约 418 px，没有大图目录），再存一份相同的到 `png/` 只是浪费空间，转成 WebP 反而更糊。所以索引里「原图」与「缩略图」指向同一个文件，`catalog` 用 `flat` 标记走这条路径。
 
 合计 5,828 条记录、8,411 张参考图。深度姿势库与姿势库是同一批 288 个动作、同样 1,439 个文件名，内容换成灰度深度图。二次元库把发型与眼睛、服装、姿势混在一个库里，用「分类」区分（编号前缀 `H` / `O` / `P`），其中姿势组另有线稿版本（本地文件名带 `_line` 后缀）。服装动画库与服装库分类相同、编号规则相同，但是**两批不同的图**（上游两版独立编号、互不补齐），所以是两个库：同一编号在两个库里指不同的图。
 
@@ -34,6 +37,7 @@
 | 脸部 | `https://ai-portrait-gallery.pages.dev/img/full/<名>.png` |
 | 深度姿势 | `https://ai-pose-depth-gallery.pages.dev/img/<名>.png` |
 | 二次元 | `https://charadb-2fi.pages.dev/img/<名>.jpg`（线稿 `line/<源ID>.png`） |
+| 澪设计档案 | `https://sleepyzone.online/mio-design-archive/assets/tiles/<名>.jpg`（就是内置的那张，不会重复下载） |
 
 想完全离线：按索引里的文件名把原图放进六个库各自的 `png/`（「原图」字段就是相对路径），再设 `COMFYUI_REF_LOOKBOOK_OFFLINE=1`。
 

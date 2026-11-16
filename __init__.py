@@ -379,7 +379,7 @@ async def status_route(request):
     return web.json_response(report)
 
 # 允许下发的静态文件白名单：与 server.py 的 WEB_FILES 同一份，加文件记得两边一起改。
-WEB_FILES = ('gallery.mjs', 'style.css', 'icon.svg', 'ref_gallery.js', 'mio.mjs', 'mio.css')
+WEB_FILES = ('gallery.mjs', 'style.css', 'icon.svg', 'ref_gallery.js', 'mio.mjs')
 
 @routes.get('/ref_lookbook/web/{filename}')
 async def web_route(request):

@@ -115,8 +115,22 @@ class ServerTests(unittest.TestCase):
                 self.assertEqual(status, 200)
                 self.assertIn('text/html', headers['Content-Type'])
                 self.assertIn('设计档案', body.decode('utf-8'))
-        for name in ('mio.mjs', 'mio.css'):
+        for name in ('mio.mjs',):
             self.assertEqual(get(f'/ref_lookbook/web/{name}')[0], 200, name)
+
+    def test_mio_page_shares_the_gallery_skeleton(self):
+        """澪图库与六库页共用一套样式表和同一个骨架：只有一份 CSS，加新库不准再建第二份。"""
+        status, _, body = get('/ref_lookbook/mio')
+        text = body.decode('utf-8')
+        self.assertEqual(status, 200)
+        self.assertIn('/ref_lookbook/web/style.css', text)
+        for marker in ('class="topbar"', 'class="intro"', 'class="lib-nav"',
+                       'id="series" class="tabs"', 'id="categories" class="categories"',
+                       'class="toolbar"', 'class="result-line"', 'id="grid" class="grid"'):
+            self.assertIn(marker, text, marker)
+        # 旧的独立样式表必须彻底消失，否则两套皮肤又会分叉
+        self.assertNotIn('mio.css', text)
+        self.assertEqual(get('/ref_lookbook/web/mio.css')[0], 404)
 
     def test_primary_menu_has_two_libraries(self):
         """一级菜单只有日系图库 / 澪图库两项，两个页面各有一份，当前页要标 aria-current。

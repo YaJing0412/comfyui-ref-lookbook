@@ -1,6 +1,8 @@
-// 霧島澪 · 设计档案 —— 独立页面脚本。
-// 与六库页（gallery.mjs）完全解耦：数据只读 /ref_lookbook/catalog/mio，
-// 布局是「系列 → 卷 → 9 件」，重点是每件自带的中英提示词，所以详情面板以提示词为主体。
+// 澪图库页面脚本。
+// 界面骨架、样式表、控件层级与六库页（gallery.mjs / style.css）完全一致：
+//   一级 .lib-nav（日系图库 / 澪图库）→ 二级 .tabs（系列）→ 三级 .categories（卷）→ 网格 → 详情。
+// 唯一的差别是数据维度：这里的二级是「系列」、三级是「卷」，六库那边是「库」和「分类」。
+// 所以只复用标签样式，不复制样式表 —— 新增按系列组织的库照这一份抄，别再写第二个 CSS。
 const API = '/ref_lookbook/catalog/mio';
 const ASSET_BASE = '/ref_lookbook/assets/';
 const PAGE = 60;
@@ -11,12 +13,13 @@ const state = {
   volumes: [],
   bySlug: new Map(),
   byId: new Map(),
-  series: new Map(),
-  view: { type: 'volume', slug: null },
+  series: new Map(),   // series_zh -> { slug, volumes: [] }
+  view: { type: 'all' },
   query: '',
-  list: [],     // 当前视图下的有序记录，供弹窗上一个/下一个
+  list: [],            // 当前视图下的有序记录，供弹窗上一个 / 下一个
   shown: PAGE,
   current: -1,
+  selectedId: '',      // 节点回填时高亮的那一件
 };
 
 const $ = (id) => document.getElementById(id);
@@ -43,28 +46,29 @@ async function boot() {
     state.rows = payload.records || [];
     state.volumes = (payload.meta && payload.meta.volumes) || [];
   } catch (error) {
-    $('head-title').textContent = '数据读取失败';
-    $('head-lede').textContent = `没能读到 mio 索引（${error.message}）。确认 library/data/mio-zh.json 在，然后刷新。`;
+    $('status').textContent = `没能读到 mio 索引（${error.message}），请刷新重试。`;
+    $('total').textContent = '暂时无法读取';
+    $('section-title').textContent = '数据读取失败';
     return;
   }
   if (!state.rows.length) {
-    $('head-title').textContent = '索引是空的';
+    $('status').textContent = '索引是空的，检查 library/data/mio-zh.json。';
     return;
   }
 
   state.rows.forEach((row) => state.byId.set(row.id, row));
   state.volumes.forEach((volume) => state.bySlug.set(volume.slug, volume));
   state.volumes.forEach((volume) => {
-    if (!state.series.has(volume.series_zh)) state.series.set(volume.series_zh, []);
-    state.series.get(volume.series_zh).push(volume);
+    const name = volume.series_zh;
+    if (!state.series.has(name)) state.series.set(name, { slug: volume.series, volumes: [] });
+    state.series.get(name).volumes.push(volume);
   });
-  state.series.forEach((list) => list.sort((a, b) => a.vol - b.vol));
+  state.series.forEach((group) => group.volumes.sort((a, b) => a.vol - b.vol));
 
   const total = state.rows.length;
-  $('stat').textContent = `${state.volumes.length} 卷 · ${total} 件`;
-  $('all-count').textContent = total.toLocaleString();
+  $('total').textContent = `${state.volumes.length} 卷 / ${total.toLocaleString()} 件`;
 
-  renderRail();
+  renderSeriesTabs();
   bindEvents();
   route();
   if (window.parent !== window) {
@@ -72,85 +76,97 @@ async function boot() {
   }
 }
 
-// ---------- 左栏 ----------
-// 菜单三层里这里是澪图库的下级：一级「澪图库」（顶部）→ 二级「系列」可折叠 → 三级「卷」可点。
-// 系列默认展开，点标题收起；从外部跳到某个卷时，如果它所在的系列是收起的，自动展开。
-function renderRail() {
-  const host = $('volumes');
-  host.replaceChildren();
-  const rank = (name) => {
-    const index = SERIES_ORDER.indexOf(name);
-    return index < 0 ? 99 : index;
-  };
-  const names = [...state.series.keys()].sort((a, b) => rank(a) - rank(b));
-  names.forEach((name) => {
-    const list = state.series.get(name);
-    const head = el('button', undefined, 'series-head');
-    head.type = 'button';
-    head.setAttribute('aria-expanded', 'true');
-    head.append(
-      el('span', name, 'series-name'),
-      el('span', `${list.length} 卷`, 'series-n'),
-      el('span', undefined, 'series-caret'),
-    );
-    const body = el('div', undefined, 'series-body');
-    head.addEventListener('click', () => {
-      const open = head.getAttribute('aria-expanded') === 'true';
-      head.setAttribute('aria-expanded', String(!open));
-      body.hidden = open;
-    });
-    list.forEach((volume) => body.append(volumeButton(volume)));
-    const group = el('section', undefined, 'series');
-    group.append(head, body);
-    host.append(group);
-  });
+// ---------- 二级：系列页签 ----------
+function seriesRank(name) {
+  const index = SERIES_ORDER.indexOf(name);
+  return index < 0 ? 99 : index;
 }
 
-function volumeButton(volume) {
-  const button = el('button', undefined, 'vol-button');
-  button.type = 'button';
-  button.dataset.slug = volume.slug;
-  button.append(
-    el('span', `Vol.${String(volume.vol).padStart(2, '0')}`, 'vol-no'),
-    el('span', volume.theme_zh || volume.label, 'vol-name'),
-    el('span', String(volume.count), 'vol-n'),
-  );
-  button.addEventListener('click', () => go({ type: 'volume', slug: volume.slug }));
-  return button;
+function seriesNames() {
+  return [...state.series.keys()].sort((a, b) => seriesRank(a) - seriesRank(b));
 }
 
-function markRail() {
-  document.querySelectorAll('#volumes .series-body button').forEach((button) => {
-    const hit = state.view.type === 'volume' && button.dataset.slug === state.view.slug;
-    button.setAttribute('aria-current', String(hit));
-    const body = button.parentElement;
-    if (hit && body.hidden) {
-      body.hidden = false;
-      body.previousElementSibling?.setAttribute('aria-expanded', 'true');
-    }
+function rowsOf(series) {
+  return series ? state.rows.filter((row) => row['分类'] === series) : state.rows;
+}
+
+function renderSeriesTabs() {
+  const current = activeSeries();
+  const items = [{ name: '', label: '全部', count: state.rows.length, hash: '#all' }]
+    .concat(seriesNames().map((name) => ({
+      name,
+      label: name,
+      count: rowsOf(name).length,
+      hash: `#s-${state.series.get(name).slug}`,
+    })));
+  $('series').replaceChildren(...items.map((item) => {
+    const link = el('a', item.label);
+    link.href = item.hash;
+    link.append(el('span', item.count.toLocaleString()));
+    if ((current || '') === item.name) link.setAttribute('aria-current', 'page');
+    return link;
+  }));
+}
+
+// ---------- 三级：卷 ----------
+// 选中系列才列卷：全部状态下 43 卷会铺满六七行，把搜索和网格顶到屏幕外，
+// 而「先选系列再选卷」本来就是这个页面的浏览顺序。六库页的分类条同理只在该库内有意义。
+function activeSeries() {
+  if (state.view.type === 'series') return state.view.series;
+  if (state.view.type === 'volume') {
+    const volume = state.bySlug.get(state.view.slug);
+    return volume ? volume.series_zh : '';
+  }
+  return '';
+}
+
+function renderCategories() {
+  const box = $('categories');
+  const series = activeSeries();
+  if (!series) { box.hidden = true; box.replaceChildren(); return; }
+  const volumes = state.series.get(series).volumes;
+  const selected = state.view.type === 'volume' ? state.view.slug : '';
+  const all = el('button', '全部');
+  all.append(el('span', rowsOf(series).length.toLocaleString()));
+  all.setAttribute('aria-pressed', String(!selected));
+  all.addEventListener('click', () => go({ type: 'series', series }));
+  const chips = volumes.map((volume) => {
+    const button = el('button', `Vol.${String(volume.vol).padStart(2, '0')} · ${volume.theme_zh || volume.label}`);
+    button.append(el('span', String(volume.count)));
+    button.setAttribute('aria-pressed', String(volume.slug === selected));
+    button.title = volume.note || volume.theme_en || '';
+    button.addEventListener('click', () => go({ type: 'volume', slug: volume.slug }));
+    return button;
   });
-  $('all').setAttribute('aria-current', String(state.view.type === 'all'));
+  box.hidden = false;
+  box.replaceChildren(all, ...chips);
 }
 
 // ---------- 视图 ----------
+function hashOf(view) {
+  if (view.type === 'series') return `#s-${state.series.get(view.series).slug}`;
+  if (view.type === 'volume') return `#${view.slug}`;
+  return '#all';
+}
+
 function go(view) {
   state.view = view;
   state.shown = PAGE;
   closeViewer();
-  const hash = view.type === 'all' ? '#all' : `#${view.slug}`;
+  const hash = hashOf(view);
   if (location.hash !== hash) history.replaceState(null, '', hash);
   render();
 }
 
 function route() {
   const hash = decodeURIComponent(location.hash.replace(/^#/, ''));
-  if (hash === 'all') {
-    state.view = { type: 'all' };
+  if (hash.startsWith('s-')) {
+    const hit = seriesNames().find((name) => state.series.get(name).slug === hash.slice(2));
+    state.view = hit ? { type: 'series', series: hit } : { type: 'all' };
   } else if (state.bySlug.has(hash)) {
     state.view = { type: 'volume', slug: hash };
   } else {
-    const first = state.volumes[0];
-    state.view = { type: 'volume', slug: first ? first.slug : null };
+    state.view = { type: 'all' };
   }
   state.shown = PAGE;
   render();
@@ -162,61 +178,69 @@ function matches(row) {
   return state.query.split(/\s+/).filter(Boolean).every((word) => haystack.includes(word));
 }
 
-function render() {
-  const grid = $('grid');
-  const head = $('head');
-  let rows = [];
-
-  if (state.view.type === 'all') {
-    rows = state.rows.filter(matches);
-    head.querySelector('#head-eyebrow').textContent = '全部作品';
-    $('head-title').textContent = state.query ? `搜索：${state.query}` : '43 卷，387 件';
-    $('head-lede').textContent = state.query
-      ? `在全部 ${state.rows.length} 件里筛出 ${rows.length} 件。空格分隔多个词时需同时包含。`
-      : '按系列与卷浏览作者的完整设计档案。点任意作品看作者写好的中英文提示词。';
-    $('head-meta').textContent = `${rows.length.toLocaleString()} 件`;
-    $('empty').hidden = rows.length > 0;
-  } else if (state.view.type === 'volume') {
+function currentRows() {
+  let rows;
+  if (state.view.type === 'volume') {
     const volume = state.bySlug.get(state.view.slug);
     rows = state.rows.filter((row) => row['卷slug'] === state.view.slug);
-    if (state.query) rows = rows.filter(matches);
-    if (volume) {
-      $('head-eyebrow').textContent = `${volume.series_zh} · ${volume.label}`;
-      $('head-title').textContent = volume.theme_zh || volume.title;
-      $('head-lede').textContent = volume.note || volume.theme_en || '';
-      const bits = [`${volume.count} 件`, volume.date, volume.theme_en].filter(Boolean);
-      $('head-meta').textContent = bits.join(' · ');
-    }
-    $('empty').hidden = rows.length > 0;
+    if (!rows.length && volume) rows = state.rows.filter((row) => row['分类'] === volume.series_zh);
+  } else if (state.view.type === 'series') {
+    rows = rowsOf(state.view.series);
+  } else {
+    rows = state.rows;
   }
+  return rows.filter(matches);
+}
 
+function titleOf() {
+  if (state.view.type === 'volume') {
+    const volume = state.bySlug.get(state.view.slug);
+    return volume ? `Vol.${String(volume.vol).padStart(2, '0')} ${volume.theme_zh || volume.label}` : '卷不存在';
+  }
+  if (state.view.type === 'series') return state.view.series;
+  return '全部作品';
+}
+
+function render() {
+  const rows = currentRows();
   state.list = rows;
-  grid.replaceChildren();
-  grid.classList.toggle('thirds', state.view.type === 'volume');
-  const slice = state.view.type === 'all' ? rows.slice(0, state.shown) : rows;
+  renderSeriesTabs();
+  renderCategories();
+
+  $('section-title').textContent = state.query ? `搜索：${state.query}` : titleOf();
+  $('status').textContent = `共 ${rows.length.toLocaleString()} 件 · 已显示 ${Math.min(rows.length, state.shown).toLocaleString()} 件`;
+  $('empty').hidden = rows.length > 0;
+
+  // 卷视图固定 3 列：每卷正好 9 件，三行九宫格，跟源站的合集图排布一致。
+  const grid = $('grid');
+  grid.classList.toggle('thirds', state.view.type === 'volume' && !state.query);
+  const slice = rows.slice(0, state.shown);
   const fragment = document.createDocumentFragment();
   slice.forEach((row) => fragment.append(card(row)));
-  grid.append(fragment);
+  grid.replaceChildren(fragment);
 
-  const rest = state.view.type === 'all' ? rows.length - slice.length : 0;
+  const rest = rows.length - slice.length;
   $('more').hidden = rest <= 0;
   if (rest > 0) $('more').textContent = `加载更多（还有 ${rest} 件）`;
-  markRail();
   if (window.innerWidth > 960) window.scrollTo({ top: 0, behavior: 'auto' });
 }
 
 function card(row) {
   const button = el('button', undefined, 'card');
   button.type = 'button';
-  button.dataset.id = row.id;
+  button.setAttribute('aria-label', `查看 ${row.id} ${row['名称'] || ''}`);
+  button.setAttribute('aria-current', String(row.id === state.selectedId));
   const image = document.createElement('img');
   image.loading = 'lazy';
   image.decoding = 'async';
   image.src = assetUrl(row['缩略图']);
-  image.alt = `${row['名称'] || row.id} · ${row['分类2'] || ''}`;
-  const body = el('div', undefined, 'card-body');
-  body.append(el('h3', row['名称'] || row.id), el('p', row.id));
-  button.append(image, body);
+  image.alt = `${row.id} ${row['名称'] || ''} ${row['卷主题'] || ''}`;
+  image.width = 300; image.height = 300;
+  const info = el('div', undefined, 'card-info');
+  const heading = el('div', undefined, 'card-heading');
+  heading.append(el('h3', row.id), el('span', row['卷主题'] || row['分类2'] || '', 'card-cat'));
+  info.append(heading, el('p', [row['名称'], ...(row['关键词'] || [])].filter(Boolean).join(' · ')));
+  button.append(image, info);
   button.addEventListener('click', () => openViewer(row.id));
   return button;
 }
@@ -226,27 +250,25 @@ function openViewer(id) {
   const row = state.byId.get(id);
   if (!row) return;
   state.current = state.list.findIndex((item) => item.id === id);
-  $('v-img').src = assetUrl(row['缩略图']);
-  $('v-img').alt = `${row['名称'] || row.id} · ${row['分类2'] || ''}`;
-  $('v-caption').textContent = `${row['卷'] || ''} · ${row['分类2'] || ''}`;
-  $('v-eyebrow').textContent = `${row.id} · ${row['分类'] || ''}`;
-  $('v-title').textContent = row['名称'] || row.id;
-  $('v-desc').textContent = row['描述'] || '';
-  $('v-prompt').value = row['提示词'] || '（作者未提供英文提示词）';
-  $('v-prompt-zh').value = row['提示词中文'] || '（作者未提供中文提示词）';
-  $('v-meta').textContent = [row['卷'], row['卷主题'], row['日期']].filter(Boolean).join(' · ');
-  const source = $('v-source');
-  if (row['来源']) {
-    source.href = row['来源'];
-    source.hidden = false;
-  } else {
-    source.hidden = true;
-  }
+  $('large').src = assetUrl(row['缩略图']);
+  $('large').alt = `${row.id} ${row['名称'] || ''}`;
+  $('detail-cat').textContent = [row['分类'], row['卷'], row['卷主题']].filter(Boolean).join(' · ');
+  $('detail-title').textContent = row['名称'] || row.id;
+  $('position').textContent = `${state.current + 1} / ${state.list.length} · ${row.id}`;
+  $('desc').textContent = row['描述'] || '';
+  $('prompt-en').value = row['提示词'] || '（作者未提供英文提示词）';
+  $('prompt-zh').value = row['提示词中文'] || '（作者未提供中文提示词）';
+  $('meta').textContent = [row['卷'], row['日期'], row['来源']].filter(Boolean).join(' · ');
+  const source = $('source');
+  if (row['来源']) { source.href = row['来源']; source.hidden = false; } else { source.hidden = true; }
   // 只有在 ComfyUI 节点的 iframe 里才给「使用此素材」——独立浏览时这个按钮无处可去。
-  $('v-use').hidden = window.parent === window;
-  const total = state.list.length;
-  $('v-prev').disabled = state.current <= 0;
-  $('v-next').disabled = state.current < 0 || state.current >= total - 1;
+  $('use-item').hidden = window.parent === window;
+  $('prev').disabled = state.current <= 0;
+  $('next').disabled = state.current < 0 || state.current >= state.list.length - 1;
+  document.querySelectorAll('[data-copy]').forEach((button) => {
+    button.textContent = '复制';
+    delete button.dataset.done;
+  });
   const dialog = $('viewer');
   if (!dialog.open) dialog.showModal();
 }
@@ -280,10 +302,7 @@ async function copy(text, button) {
   const label = button.textContent;
   button.textContent = '已复制';
   button.dataset.done = 'true';
-  setTimeout(() => {
-    button.textContent = label;
-    delete button.dataset.done;
-  }, 1400);
+  setTimeout(() => { button.textContent = label; delete button.dataset.done; }, 1400);
 }
 
 // ---------- 事件 ----------
@@ -292,36 +311,49 @@ function bindEvents() {
   $('q').addEventListener('input', (event) => {
     const value = event.target.value.trim().toLowerCase();
     clearTimeout(timer);
-    timer = setTimeout(() => {
-      state.query = value;
-      // 有搜索词就跨全库搜，否则回到当前卷 —— 不然用户在一卷里搜不到会以为没这素材。
-      if (value && state.view.type !== 'all') {
-        state.view = { type: 'all' };
-        state.shown = PAGE;
-        history.replaceState(null, '', '#all');
-      } else if (!value && state.view.type === 'all' && state.volumes[0]) {
-        // 清空搜索且原本在全部视图时留在原地，不强行跳卷。
-      }
-      state.shown = PAGE;
-      render();
-    }, 160);
+    timer = setTimeout(() => { state.query = value; state.shown = PAGE; render(); }, 160);
   });
-
-  $('all').addEventListener('click', () => go({ type: 'all' }));
-  $('more').addEventListener('click', () => {
-    state.shown += PAGE;
-    render();
+  $('reset').addEventListener('click', () => {
+    state.query = '';
+    $('q').value = '';
+    go({ type: 'all' });
   });
+  $('more').addEventListener('click', () => { state.shown += PAGE; render(); });
 
-  $('v-close').addEventListener('click', closeViewer);
-  $('v-prev').addEventListener('click', () => step(-1));
-  $('v-next').addEventListener('click', () => step(1));
-  $('v-use').addEventListener('click', () => {
+  $('close').addEventListener('click', closeViewer);
+  $('prev').addEventListener('click', () => step(-1));
+  $('next').addEventListener('click', () => step(1));
+  $('use-item').addEventListener('click', () => {
     const row = state.list[state.current];
     if (row && window.parent !== window) {
       window.parent.postMessage({ type: 'ref-gallery-select', library: 'mio', id: row.id }, location.origin);
     }
   });
+  $('copy-id').addEventListener('click', (event) => {
+    const row = state.list[state.current];
+    if (row) copy(row.id, event.currentTarget);
+  });
+  document.querySelectorAll('[data-copy]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const field = button.dataset.copy === 'en' ? 'prompt-en' : 'prompt-zh';
+      copy($(field).value, button);
+    });
+  });
+  $('viewer').addEventListener('click', (event) => {
+    if (event.target === $('viewer')) closeViewer();  // 点遮罩关闭
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if ($('viewer').open) {
+      if (event.key === 'ArrowLeft') { event.preventDefault(); step(-1); }
+      if (event.key === 'ArrowRight') { event.preventDefault(); step(1); }
+    } else if (event.key === '/' && event.target.tagName !== 'INPUT') {
+      event.preventDefault(); $('q').focus();
+    }
+  });
+
+  window.addEventListener('hashchange', route);
+
   // 与六库页同一套 iframe 协议：节点打开时把当前 ID 推过来，这里直接翻到那一件。
   window.addEventListener('message', (event) => {
     if (event.origin !== location.origin || event.source !== window.parent) return;
@@ -329,37 +361,13 @@ function bindEvents() {
     const id = event.data.id;
     if (typeof id !== 'string' || !state.byId.has(id)) return;
     const row = state.byId.get(id);
-    if (state.view.type !== 'volume' || state.view.slug !== row['卷slug']) {
-      state.view = { type: 'volume', slug: row['卷slug'] };
-      state.shown = PAGE;
-      render();
-    }
+    state.selectedId = id;
+    const target = { type: 'volume', slug: row['卷slug'] };
+    if (hashOf(target) !== location.hash) history.replaceState(null, '', hashOf(target));
+    state.view = target;
+    state.shown = PAGE;
+    render();
     openViewer(id);
-  });
-  $('v-copy-id').addEventListener('click', (event) => {
-    const row = state.list[state.current];
-    if (row) copy(row.id, event.currentTarget);
-  });
-  document.querySelectorAll('[data-copy]').forEach((button) => {
-    button.addEventListener('click', () => {
-      const field = button.dataset.copy === 'en' ? 'v-prompt' : 'v-prompt-zh';
-      copy($(field).value, button);
-    });
-  });
-
-  $('viewer').addEventListener('click', (event) => {
-    if (event.target === $('viewer')) closeViewer();  // 点遮罩关闭
-  });
-
-  window.addEventListener('keydown', (event) => {
-    if (!$('viewer').open) return;
-    if (event.key === 'ArrowLeft') { event.preventDefault(); step(-1); }
-    if (event.key === 'ArrowRight') { event.preventDefault(); step(1); }
-  });
-
-  window.addEventListener('hashchange', route);
-  window.addEventListener('resize', () => {
-    $('more').hidden = state.view.type !== 'all' || state.list.length <= state.shown;
   });
 }
 

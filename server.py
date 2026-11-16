@@ -41,7 +41,7 @@ else:  # 被测试以包方式加载
     from . import bulk
 
 # 允许直接下发的静态文件：与 ComfyUI 版路由同一份白名单，外加页面本体。
-WEB_FILES = ('gallery.mjs', 'style.css', 'icon.svg', 'ref_gallery.js', 'mio.mjs', 'mio.css')
+WEB_FILES = ('gallery.mjs', 'style.css', 'icon.svg', 'ref_gallery.js', 'mio.mjs')
 CONTENT_TYPES = {'.webp': 'image/webp', '.svg': 'image/svg+xml', '.mjs': 'text/javascript; charset=utf-8',
                  '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
                  '.html': 'text/html; charset=utf-8', '.json': 'application/json; charset=utf-8',

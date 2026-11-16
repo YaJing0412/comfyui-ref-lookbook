@@ -23,7 +23,7 @@ A ComfyUI node pack that turns six public AI-reference libraries into galleries 
 
 不属于六库的节点：`CharacterRecipe`（四合一角色配方：发型 + 脸 + 服装 + 姿势一次取图，输出四张图 + 参考拼图 + 中英提示词）、`HairGallery`（发型图库：澪设计 54 件 / 二次元 230 条，一个下拉切来源）、`MioGallery`（澪设计单取一件）、`PromptJoin`（提示词拼接：静态模板 + 最多两路动态文字）。
 
-当前版本 **v1.9.1**，变化见[更新日志](更新日志.md)。
+当前版本 **v1.10.0**，变化见[更新日志](更新日志.md)。
 
 ## 安装
 

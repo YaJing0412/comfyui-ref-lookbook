@@ -81,6 +81,9 @@ class WorkflowShapeTests(unittest.TestCase):
 
         只数会变成控件的输入：forceInput 的插槽（提示词拼接节点的 extra）在画布上没有控件，
         存盘时也不会进 widgets_values。
+
+        新版前端还会把「浏览图库」这类按钮控件也序列化进 widgets_values（值为 null），
+        所以允许尾部多出若干个 None；多出来的只要不是 None，就是真错位。
         """
         for node in self.workflow['nodes']:
             kind = node['type']
@@ -92,7 +95,11 @@ class WorkflowShapeTests(unittest.TestCase):
                     list((spec.get('optional') or {}).values())
                 expected = sum(1 for entry in entries
                                if not (isinstance(entry[1], dict) and entry[1].get('forceInput')))
-                self.assertEqual(len(node.get('widgets_values') or []), expected)
+                values = node.get('widgets_values') or []
+                self.assertGreaterEqual(len(values), expected,
+                                        f'控件值比输入项少，参数必错位：{values}')
+                self.assertTrue(all(v is None for v in values[expected:]),
+                                f'尾部多出的值不是 None，说明控件错位：{values[expected:]}')
 
 
 class RecipeWiringTests(unittest.TestCase):

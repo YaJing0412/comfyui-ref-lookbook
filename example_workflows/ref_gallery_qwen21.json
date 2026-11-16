@@ -2,7 +2,7 @@
   "id": "ref-gallery-qwen21",
   "revision": 0,
   "last_node_id": 101,
-  "last_link_id": 30,
+  "last_link_id": 32,
   "nodes": [
     {
       "id": 101,
@@ -98,6 +98,14 @@
           "type": "STRING",
           "slot_index": 6,
           "links": null
+        },
+        {
+          "name": "hair_detail",
+          "type": "STRING",
+          "slot_index": 7,
+          "links": [
+            32
+          ]
         }
       ],
       "properties": {
@@ -352,6 +360,11 @@
           "link": 5
         },
         {
+          "name": "prompt",
+          "type": "STRING",
+          "link": 31
+        },
+        {
           "name": "images.image_1",
           "type": "IMAGE",
           "shape": 7,
@@ -414,11 +427,11 @@
         "Node name for S&R": "TextEncodeQwenImage21"
       },
       "widgets_values": [
-        "Create one coherent image from four references with separate roles. Image1 is the body-pose reference: follow its limb placement, body orientation, camera viewpoint and framing exactly. Image2 is the face and identity reference: keep this person's facial features, face shape, skin tone and overall look, and continue that same person downwards into a full body. Image3 is the outfit reference: dress the person in the garments and accessories shown there, preserving their colors, patterns, materials, layering and design details. Image4 is the hairstyle reference: use its length, cut, bangs, parting and hair color for the top of the head, overriding the hair seen in Image2. Combine them into a single photo of one person: the body in the pose of Image1, the head of Image2, the clothes of Image3, the hair of Image4. Fit the clothes naturally to the posed body with coherent folds and occlusion, and keep the head, neck and shoulders anatomy consistent with the rest of the body. Do not copy the grey mannequin, line drawing, plain backdrop or annotations from the references, and do not produce a reference sheet or collage.",
+        "四张参考图合成一张完整的人物照片，每张图只负责一件事：\n\n【图1 · 姿势与构图】照它的肢体位置、身体朝向、机位与取景，动作不要改。\n【图2 · 脸与身份】只取长相：五官、脸型、肤色、气质，把这张脸接在自然完整的身体上。图2 自带的头发一律不要——长发、刘海、卷度全部丢掉。\n【图3 · 服装】把里面这套衣服与配饰穿到人物身上，颜色、图案、材质、叠穿、细节都照它。\n【图4 · 头发】图4 是发型（假发）参考，只取头发：长度、层次、发尾走向、发色、刘海、分缝全部照它，把人物头顶的头发整体换掉。图4 里的白色人台、脖子、底座、纯色背景都不要画进来。\n头发的铁律：只认图4。图4 与图2 冲突时一律以图4 为准；哪怕要改人物轮廓，也不能保留图2 原来的头发。\n\n只输出一个人物的单张照片：图1 的姿态、图2 的脸、图3 的衣服、图4 的头发。衣服贴合姿态，褶皱与遮挡自然，头颈肩结构连贯。不要照搬参考图里的灰色人偶、线稿、纯色背景和标注文字，不要输出拼图或参考图合集。",
         "",
         1024
       ],
-      "title": "Text Encode Qwen Image 2.1 - 姿势 / 脸部 / 服装 / 发型四库分工"
+      "title": "Text Encode Qwen Image 2.1 - 中文提示词由拼接节点汇入（断了用这里的兜底）"
     },
     {
       "id": 6,
@@ -1188,6 +1201,50 @@
       ],
       "color": "#432",
       "bgcolor": "#653"
+    },
+    {
+      "id": 40,
+      "type": "PromptJoin",
+      "pos": [
+        720,
+        800
+      ],
+      "size": [
+        620,
+        560
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "extra",
+          "type": "STRING",
+          "link": 32
+        },
+        {
+          "name": "extra2",
+          "type": "STRING",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "slot_index": 0,
+          "links": [
+            31
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PromptJoin"
+      },
+      "widgets_values": [
+        "四张参考图合成一张完整的人物照片，每张图只负责一件事：\n\n【图1 · 姿势与构图】照它的肢体位置、身体朝向、机位与取景，动作不要改。\n【图2 · 脸与身份】只取长相：五官、脸型、肤色、气质，把这张脸接在自然完整的身体上。图2 自带的头发一律不要——长发、刘海、卷度全部丢掉。\n【图3 · 服装】把里面这套衣服与配饰穿到人物身上，颜色、图案、材质、叠穿、细节都照它。\n【图4 · 头发】图4 是发型（假发）参考，只取头发：长度、层次、发尾走向、发色、刘海、分缝全部照它，把人物头顶的头发整体换掉。图4 里的白色人台、脖子、底座、纯色背景都不要画进来。\n头发的铁律：只认图4。图4 与图2 冲突时一律以图4 为准；哪怕要改人物轮廓，也不能保留图2 原来的头发。\n\n只输出一个人物的单张照片：图1 的姿态、图2 的脸、图3 的衣服、图4 的头发。衣服贴合姿态，褶皱与遮挡自然，头颈肩结构连贯。不要照搬参考图里的灰色人偶、线稿、纯色背景和标注文字，不要输出拼图或参考图合集。"
+      ],
+      "title": "Prompt Join 提示词拼接 - 中文分工说明 + 所选发型的描述"
     }
   ],
   "links": [
@@ -1244,7 +1301,7 @@
       34,
       0,
       5,
-      4,
+      5,
       "VAE"
     ],
     [
@@ -1276,7 +1333,7 @@
       4,
       0,
       5,
-      1,
+      2,
       "IMAGE"
     ],
     [
@@ -1284,7 +1341,7 @@
       2,
       0,
       5,
-      2,
+      3,
       "IMAGE"
     ],
     [
@@ -1292,7 +1349,7 @@
       3,
       0,
       5,
-      3,
+      4,
       "IMAGE"
     ],
     [
@@ -1300,7 +1357,7 @@
       1,
       0,
       5,
-      5,
+      6,
       "IMAGE"
     ],
     [
@@ -1430,6 +1487,22 @@
       25,
       0,
       "IMAGE"
+    ],
+    [
+      31,
+      40,
+      0,
+      5,
+      1,
+      "STRING"
+    ],
+    [
+      32,
+      1,
+      7,
+      40,
+      0,
+      "STRING"
     ]
   ],
   "groups": [

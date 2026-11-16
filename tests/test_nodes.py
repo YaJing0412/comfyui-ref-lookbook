@@ -181,10 +181,11 @@ class CostumeAnimeTests(unittest.TestCase):
 
 
 class RegistrationTests(unittest.TestCase):
-    def test_nine_nodes_are_registered(self):
+    def test_expected_nodes_are_registered(self):
+        """注册表是用户能搜到的全部：图库七个 + 配方 + 提示词拼接，少一个就少一种用法。"""
         self.assertEqual(set(nodes.NODE_CLASS_MAPPINGS),
                          {'CostumeGallery', 'CostumeAnimeGallery', 'PoseGallery', 'FaceGallery', 'DepthGallery',
-                          'AnimeGallery', 'HairGallery', 'MioGallery', 'CharacterRecipe'})
+                          'AnimeGallery', 'HairGallery', 'MioGallery', 'CharacterRecipe', 'PromptJoin'})
         for key in nodes.NODE_CLASS_MAPPINGS:
             with self.subTest(node=key):
                 self.assertIn(key, nodes.NODE_DISPLAY_NAME_MAPPINGS)
@@ -198,7 +199,9 @@ class RegistrationTests(unittest.TestCase):
                                 f'{key} 声明了 FUNCTION={cls.FUNCTION}，但没有同名方法')
 
     def test_every_default_id_exists_in_its_library(self):
-        for cls in nodes.NODE_CLASS_MAPPINGS.values():
+        # 只有图库节点才有 LIBRARY / DEFAULT_ID；提示词拼接是纯字符串节点，跳过。
+        for cls in (node for node in nodes.NODE_CLASS_MAPPINGS.values()
+                    if hasattr(node, 'LIBRARY') and hasattr(node, 'DEFAULT_ID')):
             with self.subTest(node=cls.__name__):
                 self.assertEqual(nodes.item(cls.LIBRARY, cls.DEFAULT_ID)['id'], cls.DEFAULT_ID)
 
@@ -255,6 +258,37 @@ class HairNodeTests(unittest.TestCase):
         self.assertEqual(relative, 'mio/thumbs/hair-01-01.jpg')
         self.assertTrue(nodes.local_path(relative).is_file())
 
+    def test_hair_detail_describes_only_the_hair(self):
+        """hair_detail 要给提示词拼接用，所以只能讲头发本身。
+
+        作者整句提示词里带「肖像 / 上半身」这类取景词，直接拼进全身立绘的提示词会把构图带歪，
+        所以这一路取的是索引里的「描述」（深棕长发过胸、中分、发尾内扣那种），不是整句。
+        """
+        self.assertEqual(nodes.HairGallery.RETURN_NAMES[-1], 'hair_detail')
+        _, _, mio_row = nodes.HairGallery._resolve({'hair_source': '澪设计', 'hair_id': 'H-01-09'})
+        self.assertIn('内扣', mio_row['描述'])
+        self.assertNotIn('上半身', mio_row['描述'])
+
+
+class PromptJoinTests(unittest.TestCase):
+    """提示词拼接：发型节点给的文字描述要能并进静态模板，空值不能留一串空行。"""
+
+    def test_join_keeps_all_three_parts_in_order(self):
+        text, = nodes.PromptJoin.join('模板', '发型描述', '补充')
+        self.assertEqual(text, '模板\n\n发型描述\n\n补充')
+
+    def test_empty_extras_are_skipped(self):
+        """没接发型节点时（或者二次元发型没有描述）不能拼出多余的空行。"""
+        self.assertEqual(nodes.PromptJoin.join('模板'), ('模板',))
+        self.assertEqual(nodes.PromptJoin.join('模板', '', '   '), ('模板',))
+
+    def test_extra_inputs_are_sockets_not_widgets(self):
+        """extra / extra2 用 forceInput：不占控件位，工作流里的 widgets_values 只存 text 一个。"""
+        spec = nodes.PromptJoin.INPUT_TYPES()
+        self.assertEqual(list(spec['required']), ['text'])
+        for name in ('extra', 'extra2'):
+            self.assertTrue(spec['optional'][name][1].get('forceInput'), name)
+
 
 class RecipeHairTests(unittest.TestCase):
     """四合一：发型是新增槽位，输出序号必须追加在末尾，不然旧工作流的连线会整体错位。"""
@@ -282,6 +316,8 @@ class ResizeOptionTests(unittest.TestCase):
         for key, cls in nodes.NODE_CLASS_MAPPINGS.items():
             if key == 'CharacterRecipe':
                 continue  # 配方节点的尺寸做在 required 里：它总是要拼图，尺寸是明确必填的
+            if key == 'PromptJoin':
+                continue  # 纯字符串节点没有尺寸控件
             with self.subTest(node=key):
                 optional = cls.INPUT_TYPES()['optional']
                 for widget in self.WIDGETS:
@@ -289,6 +325,8 @@ class ResizeOptionTests(unittest.TestCase):
 
     def test_default_resize_mode_keeps_original_size(self):
         for key, cls in nodes.NODE_CLASS_MAPPINGS.items():
+            if key == 'PromptJoin':
+                continue  # 同上：没有 resize_mode 控件
             with self.subTest(node=key):
                 default = cls.INPUT_TYPES()['required' if key == 'CharacterRecipe' else 'optional']['resize_mode'][1]['default']
                 if key == 'CharacterRecipe':

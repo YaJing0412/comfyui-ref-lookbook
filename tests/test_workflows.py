@@ -77,14 +77,21 @@ class WorkflowShapeTests(unittest.TestCase):
                                   f'{node["id"]} 第 {slot} 个输出登记了不存在的连线 {link_id}')
 
     def test_widget_values_match_input_types(self):
-        """widgets_values 是按位置存的，个数对不上就会整体错位——加槽位时最容易踩。"""
+        """widgets_values 是按位置存的，个数对不上就会整体错位——加槽位时最容易踩。
+
+        只数会变成控件的输入：forceInput 的插槽（提示词拼接节点的 extra）在画布上没有控件，
+        存盘时也不会进 widgets_values。
+        """
         for node in self.workflow['nodes']:
             kind = node['type']
             if kind not in nodes.NODE_CLASS_MAPPINGS:
                 continue
             with self.subTest(node=node['id'], type=kind):
                 spec = nodes.NODE_CLASS_MAPPINGS[kind].INPUT_TYPES()
-                expected = len(spec.get('required') or {}) + len(spec.get('optional') or {})
+                entries = list((spec.get('required') or {}).values()) + \
+                    list((spec.get('optional') or {}).values())
+                expected = sum(1 for entry in entries
+                               if not (isinstance(entry[1], dict) and entry[1].get('forceInput')))
                 self.assertEqual(len(node.get('widgets_values') or []), expected)
 
 
@@ -106,14 +113,24 @@ class RecipeWiringTests(unittest.TestCase):
                                                if link[0] == link_id)
         return self.nodes[source], source_slot
 
+    def encoder_of(self, image_2_source):
+        """按 image_2 的来源认链：配方那条接配方节点，单独节点那条接脸部图库。
+
+        以前靠「prompt 有没有接线」区分，加了提示词拼接之后两条链的 prompt 都接了线，只能换判据。
+        """
+        for node in self.workflow['nodes']:
+            if node['type'] != 'TextEncodeQwenImage21':
+                continue
+            slot = next(index for index, item in enumerate(node['inputs']) if item['name'] == 'images.image_2')
+            source, _ = self.upstream_of(node, slot)
+            if source['type'] == image_2_source:
+                return node
+        self.fail(f'没有 image_2 接 {image_2_source} 的编码器')
+
     def test_recipe_feeds_four_references_in_order(self):
         """四条参考的顺序是硬约定：姿势 → 脸 → 服装 → 发型，错一格就串身份。"""
         recipe = self.node_of('CharacterRecipe')
-        texts = [node for node in self.workflow['nodes']
-                 if node['type'] == 'TextEncodeQwenImage21' and
-                 any((i.get('name') == 'prompt' and i.get('link')) for i in node.get('inputs') or [])]
-        self.assertEqual(len(texts), 1)
-        encoder = texts[0]
+        encoder = self.encoder_of('CharacterRecipe')
 
         expect = {'images.image_1': ('pose_image', 2), 'images.image_2': ('face_image', 0),
                   'images.image_3': ('costume_image', 1), 'images.image_4': ('hair_image', 8)}
@@ -127,13 +144,31 @@ class RecipeWiringTests(unittest.TestCase):
 
     def test_recipe_prompt_is_linked(self):
         """提示词由节点拼好接进去，用户不用自己写；断掉这条线就等于退回手写。"""
-        encoder = next(node for node in self.workflow['nodes']
-                       if node['type'] == 'TextEncodeQwenImage21' and
-                       any(i.get('name') == 'prompt' for i in node.get('inputs') or []))
+        encoder = self.encoder_of('CharacterRecipe')
         slot = next(index for index, item in enumerate(encoder['inputs']) if item['name'] == 'prompt')
         source, source_slot = self.upstream_of(encoder, slot)
         self.assertEqual(source['type'], 'CharacterRecipe')
         self.assertEqual(source['outputs'][source_slot]['name'], 'prompt_zh')
+
+    def test_single_chain_prompt_is_chinese_and_carries_the_hair_detail(self):
+        """单独节点那条链的提示词：中文模板打底，所选发型的描述由拼接节点补进来。
+
+        这一版的核心修复——只给模型看一张白色人台图时，长发选长发会被图 2 自带的头发盖掉。
+        """
+        encoder = self.encoder_of('FaceGallery')
+        slot = next(index for index, item in enumerate(encoder['inputs']) if item['name'] == 'prompt')
+        join, _ = self.upstream_of(encoder, slot)
+        self.assertEqual(join['type'], 'PromptJoin')
+
+        template = join['widgets_values'][0]
+        self.assertIn('图4', template)
+        self.assertIn('头发', template)
+        self.assertRegex(template, r'[\u4e00-\u9fff]{5,}', '模板必须是中文，方便用户自己改')
+
+        extra_slot = next(index for index, item in enumerate(join['inputs']) if item['name'] == 'extra')
+        source, source_slot = self.upstream_of(join, extra_slot)
+        self.assertEqual(source['type'], 'HairGallery')
+        self.assertEqual(source['outputs'][source_slot]['name'], 'hair_detail')
 
     def test_single_node_chain_uses_the_hair_library(self):
         """单独节点那条链的 image_4 必须来自发型节点，不然这次新增的节点没被演示到。"""
@@ -141,9 +176,7 @@ class RecipeWiringTests(unittest.TestCase):
                          if node['type'] in ('HairGallery', 'FaceGallery', 'CostumeGallery', 'PoseGallery')}
         self.assertEqual(set(library_nodes), {'HairGallery', 'FaceGallery', 'CostumeGallery', 'PoseGallery'})
 
-        encoder = next(node for node in self.workflow['nodes']
-                       if node['type'] == 'TextEncodeQwenImage21' and
-                       not any(i.get('name') == 'prompt' for i in node.get('inputs') or []))
+        encoder = self.encoder_of('FaceGallery')
         expect = {'images.image_1': 'PoseGallery', 'images.image_2': 'FaceGallery',
                   'images.image_3': 'CostumeGallery', 'images.image_4': 'HairGallery'}
         for name, kind in expect.items():
@@ -191,7 +224,8 @@ class SwitchTests(unittest.TestCase):
 
     def test_groups_are_labelled_for_the_switch(self):
         """开关按 ① / ② 认组；标题里的序号改了就点不动，所以把序号当契约。"""
-        self.assertEqual(len(self.nodes_in(SLOT_ONE)), 9, '① 组是四个图库节点 + 编码 + 采样 + 解码 + 存图')
+        self.assertEqual(len(self.nodes_in(SLOT_ONE)), 10,
+                         '① 组是四个图库节点 + 提示词拼接 + 编码 + 采样 + 解码 + 存图 + 备用 LoadImage')
         self.assertEqual(len(self.nodes_in(SLOT_TWO)), 6, '② 组是配方 + 编码 + 采样 + 解码 + 两张存图')
 
     def test_default_state_matches_saved_modes(self):

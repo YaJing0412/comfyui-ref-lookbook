@@ -471,9 +471,11 @@ class HairGallery(_GalleryNode):
     FUNCTION = 'load_hair'
     SOURCE_WIDGET = 'hair_source'
     ID_TOOLTIP = '点击浏览发型库：澪设计 6 卷 54 件（带作者提示词），或二次元发型 230 条。'
-    RETURN_TYPES = ('IMAGE', 'INT', 'INT', 'STRING', 'STRING', 'STRING', 'STRING')
-    RETURN_NAMES = ('image', 'width', 'height', 'hair_id', 'description', 'prompt', 'prompt_zh')
-    DESCRIPTION = '发型图库：澪设计 54 件（6 卷，作者原版提示词）+ 二次元 230 条动漫头型，切换来源共用一套控件。'
+    RETURN_TYPES = ('IMAGE', 'INT', 'INT', 'STRING', 'STRING', 'STRING', 'STRING', 'STRING')
+    # hair_detail 追加在末尾：连线按序号存，插到中间会把老工作流的 prompt / prompt_zh 全部错位。
+    RETURN_NAMES = ('image', 'width', 'height', 'hair_id', 'description', 'prompt', 'prompt_zh', 'hair_detail')
+    DESCRIPTION = ('发型图库：澪设计 54 件（6 卷，作者原版提示词）+ 二次元 230 条动漫头型，切换来源共用一套控件。'
+                   'hair_detail 只讲头发本身（长度 / 分层 / 发尾 / 刘海），可直接拼进提示词。')
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -524,16 +526,57 @@ class HairGallery(_GalleryNode):
         width, height = img.size
         if library == 'mio':
             prompt, prompt_zh = row.get('提示词') or '', row.get('提示词中文') or ''
+            # 只讲头发本身的句子（「深棕长发过胸，中分，层次发尾向内收成内扣弧度」）。
+            # 作者整句提示词里带「肖像 / 上半身」这类取景词，直接拼进全身立绘的提示词会把构图带歪。
+            detail = row.get('描述') or prompt_zh
         else:
             # 二次元索引没有整句提示词：英文取「英文关键词」，中文取「关键词」，缺英文时退回日文。
             prompt = ', '.join(row.get('英文关键词') or []) or row.get('日文') or ''
             prompt_zh = '、'.join(row.get('关键词') or [])
-        return (_to_tensor(img), width, height, item_id, describe(row), prompt, prompt_zh)
+            detail = prompt_zh
+        return (_to_tensor(img), width, height, item_id, describe(row), prompt, prompt_zh, detail)
 
     # ComfyUI 执行时按 FUNCTION 名字取方法：这里少一个 load_hair，节点在画布上能连能点，
     # 一点运行就报 "missing the load_hair method"。测试直接调 _load 会绕过它，所以另加断言盯住。
     def load_hair(self, **values):
         return self._load(**values)
+
+
+class PromptJoin:
+    """提示词拼接：一段静态说明 + 上游节点给的动态描述，用空行拼成一段。
+
+    为什么要这个节点：图库选的发型只以「图」的形式进模型，而长发选长发时模型更听脸部参考的话——
+    图 4 的发尾层次、分缝会被图 2 的卷度盖掉（实测：选短发能生效，选另一个长直发就看不出区别）。
+    把发型自带的文字描述拼进提示词，等于同时给了「图 + 字」，才压得住图 2 自带的头发。
+    空值自动跳过，所以只接一路也能用。
+    """
+
+    CATEGORY = 'image/Reference Gallery'
+    FUNCTION = 'join'
+    RETURN_TYPES = ('STRING',)
+    RETURN_NAMES = ('prompt',)
+    DESCRIPTION = '提示词拼接：一段静态说明 + 最多两路动态描述（如发型节点的 hair_detail），空值自动跳过。'
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            'required': {
+                'text': ('STRING', {'default': '', 'multiline': True,
+                                    'tooltip': '静态部分：四张参考图各自负责什么。'}),
+            },
+            'optional': {
+                # forceInput：只在画布上出插槽、不占控件位，工作流里的 widgets_values 只存 text 一个。
+                'extra': ('STRING', {'forceInput': True,
+                                     'tooltip': '接 Hair Gallery 的 hair_detail：所选发型的具体描述。'}),
+                'extra2': ('STRING', {'forceInput': True,
+                                      'tooltip': '可再接一路：补充细节、风格或负面词。'}),
+            },
+        }
+
+    @staticmethod
+    def join(text, extra='', extra2=''):
+        parts = [str(part).strip() for part in (text, extra, extra2) if part and str(part).strip()]
+        return ('\n\n'.join(parts),)
 
 
 class CharacterRecipe(_GalleryNode):
@@ -684,27 +727,34 @@ class CharacterRecipe(_GalleryNode):
         extra = (extra_prompt or '').strip()
         costume_label = '' if costume_lib == 'costume' else f'·{LIBRARIES[costume_lib]["label"]}'
 
-        zh = [f'融合参考图生成一张完整的角色立绘：{style_zh}。',
-              f'【发型】{_describe_zh(hair_row)}。',
-              f'【人像】{_describe_zh(face_row)}。',
-              f'【服装{costume_label}】{_describe_zh(costume_row)}。',
-              f'【动作与构图】{_describe_zh(pose_row)}。']
-        # 澪设计的发型自带作者整句提示词，比索引关键词准确得多，直接并进去。
-        if hair_library == 'mio' and hair_row.get('提示词'):
-            zh.append(f'【发型细节】{hair_row["提示词中文"] or hair_row["提示词"]}。')
+        zh = [f'参考图合成一张完整的角色立绘：{style_zh}。四张图分工固定——图1 姿势与构图、图2 长相、'
+              f'图3 服装、图4 头发，冲突时以分工为准。',
+              f'【发型·只认图4】{_describe_zh(hair_row)}。把人物头顶的头发整体换成图4 的样子：长度、层次、'
+              f'发尾走向、发色、刘海、分缝都照它；图2 自带的头发一律不要。图4 里的白色人台、脖子、'
+              f'纯色背景不要画进来。',
+              f'【人像·图2 只取长相】{_describe_zh(face_row)}。',
+              f'【服装{costume_label}·图3】{_describe_zh(costume_row)}。',
+              f'【动作与构图·图1】{_describe_zh(pose_row)}。']
+        # 澪设计的发型自带作者写的一句描述，比索引关键词具体得多（发尾内扣 / 层次 / 分缝），
+        # 用它比用作者整句提示词安全：整句里带「肖像 / 上半身」这类取景词，会把全身立绘的构图带歪。
+        detail_zh = hair_row.get('描述') or hair_row.get('提示词中文') or ''
+        if hair_library == 'mio' and detail_zh:
+            zh.append(f'【发型细节】{detail_zh}。')
         if extra:
             zh.append(f'【补充细节】{extra}。')
         zh.append('要求面部自然生动，服装贴合身体动态，肢体透视与手部结构准确，光影统一。')
 
         # 英文只取有英文词条的库（服装、二次元发型），澪设计的发型与脸部、姿势交给参考图本身，别硬翻中文。
-        en = [style_en]
+        en = [style_en,
+              'hairstyle comes from image 4 only: match its length, layers, hair ends, colour, bangs and parting, '
+              'and replace the hair seen in image 2 completely']
         costume_en = _describe_en(costume_row)
         if costume_en:
             en.append(f'wearing {costume_en}')
         hair_en = _describe_en(hair_row)
         if hair_en:
             en.append(f'hairstyle: {hair_en}')
-        en.append('match the hairstyle, face and pose from the reference sheet')
+        en.append('single photo of one person, no reference sheet, no collage, no mannequin or plain backdrop')
         if extra:
             en.append(extra)
 
@@ -717,7 +767,7 @@ NODE_CLASS_MAPPINGS = {'CostumeGallery': CostumeGallery, 'CostumeAnimeGallery': 
                        'PoseGallery': PoseGallery, 'FaceGallery': FaceGallery,
                        'DepthGallery': DepthGallery, 'AnimeGallery': AnimeGallery,
                        'HairGallery': HairGallery, 'MioGallery': MioGallery,
-                       'CharacterRecipe': CharacterRecipe}
+                       'PromptJoin': PromptJoin, 'CharacterRecipe': CharacterRecipe}
 NODE_DISPLAY_NAME_MAPPINGS = {
     'CostumeGallery': 'Costume Gallery 服装图库',
     'CostumeAnimeGallery': 'Costume Anime Gallery 服装动画图库',
@@ -727,6 +777,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     'AnimeGallery': 'Anime Gallery 二次元图库',
     'HairGallery': 'Hair Gallery 发型图库',
     'MioGallery': 'Mio Gallery 澪设计档案',
+    'PromptJoin': 'Prompt Join 提示词拼接',
     'CharacterRecipe': 'Character Recipe 四合一角色配方',
 }
 WEB_DIRECTORY = './web'

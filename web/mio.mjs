@@ -258,9 +258,8 @@ function openViewer(id) {
   $('desc').textContent = row['描述'] || '';
   $('prompt-en').value = row['提示词'] || '（作者未提供英文提示词）';
   $('prompt-zh').value = row['提示词中文'] || '（作者未提供中文提示词）';
-  $('meta').textContent = [row['卷'], row['日期'], row['来源']].filter(Boolean).join(' · ');
-  const source = $('source');
-  if (row['来源']) { source.href = row['来源']; source.hidden = false; } else { source.hidden = true; }
+  $('meta').textContent = [row['卷'], row['日期']].filter(Boolean).join(' · ');
+  // 原推链接不再放进详情：顶栏右侧已有「原作者 @Mio_2am」，这里再挂一条只是重复。
   // 只有在 ComfyUI 节点的 iframe 里才给「使用此素材」——独立浏览时这个按钮无处可去。
   $('use-item').hidden = window.parent === window;
   $('prev').disabled = state.current <= 0;

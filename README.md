@@ -20,7 +20,7 @@ A ComfyUI node pack that turns six public AI-reference libraries (costume / cost
 
 另外两个节点不属于六库：`CharacterRecipe`（三合一角色配方）把脸部、服装、姿势合成一次取图，输出一张参考整图 + 中英文合成提示词；`MioGallery`（澪设计档案）单取一件，输出图 + 作者原版中英文提示词。
 
-当前版本 **v1.6.4**。每个版本新增了什么、修了什么，见[更新日志](更新日志.md)。
+当前版本 **v1.6.5**。每个版本新增了什么、修了什么，见[更新日志](更新日志.md)。
 
 ## 安装
 

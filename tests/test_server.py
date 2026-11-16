@@ -24,10 +24,10 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
 _opener = urllib.request.build_opener(NoRedirect)
 
 
-def get(path, method='GET', payload=None):
+def get(path, method='GET', payload=None, headers=None):
     url = f'http://127.0.0.1:{SERVER.server_address[1]}{path}'
     data = json.dumps(payload).encode('utf-8') if payload is not None else None
-    request = urllib.request.Request(url, data=data, method=method)
+    request = urllib.request.Request(url, data=data, method=method, headers=headers or {})
     try:
         with _opener.open(request, timeout=30) as response:
             return response.status, response.headers, response.read()
@@ -62,6 +62,31 @@ class ServerTests(unittest.TestCase):
     def test_web_whitelist_blocks_other_files(self):
         status, _, _ = get('/ref_lookbook/web/server.py')
         self.assertEqual(status, 404)
+
+    def test_static_files_carry_validators(self):
+        """页面与静态资源都要带 ETag / Last-Modified：换了文件浏览器才能确认拿到新的。"""
+        for path in ('/ref_lookbook/gallery', '/ref_lookbook/web/style.css', '/ref_lookbook/web/mio.mjs'):
+            status, headers, _ = get(path)
+            self.assertEqual(status, 200, path)
+            self.assertTrue(headers['ETag'], path)
+            self.assertTrue(headers['Last-Modified'], path)
+            self.assertEqual(headers['Cache-Control'], 'no-cache', path)
+
+    def test_conditional_request_returns_304(self):
+        """带旧 ETag 或够新的 If-Modified-Since 都回 304，且不回正文。"""
+        status, headers, _ = get('/ref_lookbook/web/style.css')
+        etag, stamp = headers['ETag'], headers['Last-Modified']
+
+        status, headers, body = get('/ref_lookbook/web/style.css', headers={'If-None-Match': etag})
+        self.assertEqual(status, 304)
+        self.assertEqual(headers['ETag'], etag)
+        self.assertEqual(body, b'')
+
+        status, _, _ = get('/ref_lookbook/web/style.css', headers={'If-Modified-Since': stamp})
+        self.assertEqual(status, 304)
+
+        status, _, _ = get('/ref_lookbook/web/style.css', headers={'If-None-Match': '"0-deadbeef"'})
+        self.assertEqual(status, 200)
 
     def test_catalog_returns_all_records(self):
         for library, count in (('costume', 1407), ('costume-anime', 1320), ('pose', 288),

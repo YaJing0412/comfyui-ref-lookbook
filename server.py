@@ -19,6 +19,7 @@ import os
 import re
 import shutil
 import sys
+from email.utils import formatdate, parsedate_to_datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlsplit
@@ -81,25 +82,55 @@ class Handler(BaseHTTPRequestHandler):
         print(f'[{self.log_date_time_string()}] {fmt % args}')
 
     # ---------- 基础 ----------
-    def _send(self, body, status=200, content_type='application/json; charset=utf-8', cache=None):
+    def _send(self, body, status=200, content_type='application/json; charset=utf-8', cache=None, extra=None):
         self.send_response(status)
         self.send_header('Content-Type', content_type)
         self.send_header('Content-Length', str(len(body)))
         if cache:
             self.send_header('Cache-Control', cache)
+        for key, value in (extra or {}).items():
+            self.send_header(key, value)
         self.end_headers()
         self.wfile.write(body)
+
+    def _not_modified(self, etag, mtime):
+        """HTTP 条件请求：If-None-Match 优先，其次 If-Modified-Since。"""
+        tags = self.headers.get('If-None-Match')
+        if tags:
+            wanted = {tag.strip() for tag in tags.split(',')}
+            return '*' in wanted or etag in wanted
+        since = self.headers.get('If-Modified-Since')
+        if since:
+            try:
+                # mtime 截到整秒，与 Last-Modified 的秒粒度对齐，避免同一秒内来回 200/304。
+                return int(mtime) <= parsedate_to_datetime(since).timestamp()
+            except (TypeError, ValueError, OverflowError):
+                return False
+        return False
 
     def _json(self, payload, status=200, cache=None):
         self._send(json.dumps(payload, ensure_ascii=False).encode('utf-8'), status, cache=cache)
 
     def _file(self, path, cache='private, max-age=3600'):
         try:
+            stat = path.stat()
             data = path.read_bytes()
         except OSError:
             return self._json({'error': f'文件不可读：{path.name}'}, 404)
+        # 验证器用「修改时间（纳秒）+ 大小」：本地换掉文件后 ETag 必变，
+        # 浏览器带旧 If-None-Match 来问只会拿到 200 新内容，不会出现「CSS 已换、页面还按旧的排」。
+        etag = f'"{stat.st_mtime_ns:x}-{stat.st_size:x}"'
+        stamp = formatdate(stat.st_mtime, usegmt=True)
+        if self._not_modified(etag, stat.st_mtime):
+            self.send_response(304)
+            self.send_header('ETag', etag)
+            self.send_header('Last-Modified', stamp)
+            if cache:
+                self.send_header('Cache-Control', cache)
+            self.end_headers()
+            return
         ctype = CONTENT_TYPES.get(path.suffix.lower()) or mimetypes.guess_type(path.name)[0] or 'application/octet-stream'
-        self._send(data, 200, ctype, cache=cache)
+        self._send(data, 200, ctype, cache=cache, extra={'ETag': etag, 'Last-Modified': stamp})
 
     def _body(self):
         try:

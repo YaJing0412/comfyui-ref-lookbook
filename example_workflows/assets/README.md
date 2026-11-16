@@ -1,6 +1,8 @@
 # 效果图清单
 
-本目录是两套示例工作流的实跑素材，文档按固定路径引用。换图时保持文件名不变，引用处无需改。
+本目录是示例工作流的实跑素材，文档按固定路径引用。换图时保持文件名不变，引用处无需改。
+
+`ui/` 下的两张画布截图拍于两份工作流合并之前：新版把「四库单独节点」和「四合一配方」并进同一个 json，并多出发型节点与发型槽位，分组位置没变。
 
 `compare/` 与 `results/` 是工作流输出；`ui/` 是 ComfyUI 界面截图。JPEG 质量 88–92，长边 ≤1600 px（`ui/` 1800 px），合计约 2.4 MB。
 
@@ -10,14 +12,14 @@
 | --- | --- |
 | `ui/gallery-window.jpg` | 图库弹窗：三个页签、分类筛选、卡片网格（1,407 套服装） |
 | `ui/load-image-button.jpg` | 原生「加载图像」节点上的「从参考图库导入 · 服装 / 姿势 / 脸部」按钮 |
-| `ui/workflow-overview.jpg` | 三库组合工作流完整画布 |
-| `ui/workflow-recipe-overview.jpg` | 三合一配方工作流完整画布（配方 → 编码 → 采样 → 成图 / 参考整图） |
+| `ui/workflow-overview.jpg` | 单独节点取素材那段画布（旧版三库组合，新版在此之后多了发型节点） |
+| `ui/workflow-recipe-overview.jpg` | 四合一配方那段画布（旧版三槽位截图，新版多一个发型槽） |
 | `compare/pose-navy-lace-arm-up.jpg` | 线稿人偶（举臂）→ 深蓝蕾丝 |
 | `compare/pose-navy-lace-hands-on-hips.jpg` | 线稿人偶（叉腰）→ 深蓝蕾丝 |
 | `compare/pose-mint-cat.jpg` | 线稿人偶（蹲坐）→ 薄荷绿猫耳 |
 | `compare/face-red-kimono.jpg` | 脸部特写（短发粉挑染）→ 白红巫女装 |
 | `compare/photo-white-cat.jpg` | 自上传照片 → 白粉猫装 |
-| `compare/recipe-classroom.jpg` | 配方三合一参考整图（脸 / 服装 / 姿势）→ 教室窗边成图 |
+| `compare/recipe-classroom.jpg` | 配方参考整图（脸 / 服装 / 姿势；发型槽是后加的，这张拍在加之前）→ 教室窗边成图 |
 | `compare/recipe-switch-sheet.jpg` | 切库组合：动画服装库 + 深度姿势库 + 水平翻转 + 留白填充 768×1024 的三联参考 |
 | `results/recipe-classroom.jpg` | 配方成图（`prompt_zh`，教室窗边逆光） |
 | `results/recipe-english.jpg` | 配方成图（`prompt_en`，同素材同种子） |
@@ -35,4 +37,4 @@
 
 - 格式 JPEG，质量 88 以上；要用 PNG 就把两处文档里的扩展名一起改掉。
 - 长边不超过 1600 px（对比图与成图 1400 以内），单张 250 KB 以内，仓库体积敏感。
-- 换素材组合可以，但要同步改本表与 `ref_gallery_combo_qwen21.md` 的说明文字，保证描述与图对得上。
+- 换素材组合可以，但要同步改本表与 `ref_gallery_qwen21.md` 的说明文字，保证描述与图对得上。

@@ -49,9 +49,12 @@ const LIBS = {
 const requested = new URLSearchParams(location.search).get('lib');
 const lib = Object.hasOwn(LIBS, requested) ? requested : 'costume';
 const config = LIBS[lib];
+// ?cat= 预选一级分类：发型节点在二次元库这边打开时带 cat=发型与眼睛，直接落到发型，省一次点击。
+// 分类名不认识就在数据加载后清空，不会把页面卡在 0 条。
+const requestedCat = new URLSearchParams(location.search).get('cat') || '';
 const angleOrder = ['正面', '俯视', '仰视', '侧面', '斜45°'];
 
-let records = [], filtered = [], category = '', subcategory = '', angle = '';
+let records = [], filtered = [], category = requestedCat, subcategory = '', angle = '';
 let shown = 0, current = 0, selectedId = '';
 // 每次翻页自增：异步加载的原图回来时用它判断用户是否已经翻走，避免旧图盖新图。
 let detailToken = 0;
@@ -355,6 +358,8 @@ async function init() {
     offlineOnly = Boolean(payload?.origin?.offline);
     if (offlineOnly) $('offline-note').hidden = false;
     records = rows.map(withUrls);
+    // 预选分类要在这个库里真实存在，否则退回全部——不然 ?cat= 写错会得到一页空白。
+    if (category && !records.some((row) => row.分类 === category)) category = '';
     const categories = new Set(records.map((row) => row.分类).filter(Boolean)).size;
     $('total').textContent = `${records.length.toLocaleString()} ${config.unit} / ${categories} 个分类`;
     applyFilters();

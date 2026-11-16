@@ -181,13 +181,21 @@ class CostumeAnimeTests(unittest.TestCase):
 
 
 class RegistrationTests(unittest.TestCase):
-    def test_eight_nodes_are_registered(self):
+    def test_nine_nodes_are_registered(self):
         self.assertEqual(set(nodes.NODE_CLASS_MAPPINGS),
                          {'CostumeGallery', 'CostumeAnimeGallery', 'PoseGallery', 'FaceGallery', 'DepthGallery',
-                          'AnimeGallery', 'MioGallery', 'CharacterRecipe'})
+                          'AnimeGallery', 'HairGallery', 'MioGallery', 'CharacterRecipe'})
         for key in nodes.NODE_CLASS_MAPPINGS:
             with self.subTest(node=key):
                 self.assertIn(key, nodes.NODE_DISPLAY_NAME_MAPPINGS)
+
+    def test_every_function_name_has_a_method(self):
+        """ComfyUI 按 FUNCTION 字符串取方法。写错名字时节点能拖能连，一点运行才炸——
+        所有测试都直接调 _load，正好绕过这个入口，所以单独盯一遍。"""
+        for key, cls in nodes.NODE_CLASS_MAPPINGS.items():
+            with self.subTest(node=key):
+                self.assertTrue(callable(getattr(cls, cls.FUNCTION, None)),
+                                f'{key} 声明了 FUNCTION={cls.FUNCTION}，但没有同名方法')
 
     def test_every_default_id_exists_in_its_library(self):
         for cls in nodes.NODE_CLASS_MAPPINGS.values():
@@ -200,6 +208,69 @@ class RegistrationTests(unittest.TestCase):
             row = nodes.item(lib, cls_default(lib))
             with self.subTest(library=lib):
                 self.assertEqual(len(row['原图']), 5)
+
+
+class HairNodeTests(unittest.TestCase):
+    """发型节点跨两个库：编号与来源必须能自动对齐，否则切一下下拉框节点就红了。"""
+
+    def test_source_and_id_defaults(self):
+        spec = nodes.HairGallery.INPUT_TYPES()
+        self.assertEqual(spec['required']['hair_id'][1]['default'], 'H-01-01')
+        self.assertEqual(spec['optional']['hair_source'][1]['default'], '澪设计')
+        self.assertEqual(list(spec['optional']['hair_source'][0]), ['澪设计', '二次元'])
+
+    def test_switching_source_falls_back_to_that_library(self):
+        """来源切到二次元、编号还是澪设计的 H-01-01：回落到二次元的第一件发型。"""
+        library, item_id, row = nodes.HairGallery._resolve({'hair_source': '二次元', 'hair_id': 'H-01-01'})
+        self.assertEqual(library, 'anime')
+        self.assertEqual(item_id, 'ANE-H001')
+        self.assertEqual(row['分类'], '发型与眼睛')
+
+    def test_mio_source_keeps_a_mio_hair_id(self):
+        library, item_id, _ = nodes.HairGallery._resolve({'hair_source': '澪设计', 'hair_id': 'H-03-04'})
+        self.assertEqual((library, item_id), ('mio', 'H-03-04'))
+
+    def test_non_hair_id_falls_back_instead_of_failing(self):
+        """在二次元库里点了一件服装：编号合法但不是发型，回落到该库第一件发型，不让节点报错。"""
+        library, _, row = nodes.HairGallery._resolve({'hair_source': '二次元', 'hair_id': 'ANE-O001'})
+        self.assertEqual(library, 'anime')
+        self.assertEqual(row['分类'], '发型与眼睛')
+
+    def test_prompts_come_from_the_right_source(self):
+        """澪设计有作者整句提示词，二次元只有关键词——两边的字段不能互相串。
+
+        只查索引不加载图片：二次元的原图不在仓库里，走 _load 会触发上游下载。
+        """
+        _, _, mio_row = nodes.HairGallery._resolve({'hair_source': '澪设计', 'hair_id': 'H-01-01'})
+        self.assertTrue(mio_row.get('提示词'))
+        self.assertTrue(mio_row.get('提示词中文'))
+
+        _, _, anime_row = nodes.HairGallery._resolve({'hair_source': '二次元', 'hair_id': 'ANE-H001'})
+        self.assertEqual(anime_row.get('英文关键词'), ['long hair'])
+        self.assertFalse(anime_row.get('提示词'))
+
+    def test_mio_hair_points_at_a_bundled_file(self):
+        """澪库是 flat 库：原图就在 thumbs/ 里随包发行，发型节点不该为它触发上游下载。"""
+        relative = nodes.HairGallery._relative({'hair_source': '澪设计', 'hair_id': 'H-01-01'})
+        self.assertEqual(relative, 'mio/thumbs/hair-01-01.jpg')
+        self.assertTrue(nodes.local_path(relative).is_file())
+
+
+class RecipeHairTests(unittest.TestCase):
+    """四合一：发型是新增槽位，输出序号必须追加在末尾，不然旧工作流的连线会整体错位。"""
+
+    def test_hair_is_the_last_output(self):
+        names = nodes.CharacterRecipe.RETURN_NAMES
+        self.assertEqual(len(names), len(nodes.CharacterRecipe.RETURN_TYPES))
+        self.assertEqual(names[:4], ('face_image', 'costume_image', 'pose_image', 'reference_sheet'))
+        self.assertEqual(names[-1], 'hair_image')
+
+    def test_hair_inputs_are_optional(self):
+        """旧工作流里没有 hair_id 这个控件，放 required 会整条配方节点验证失败。"""
+        optional = nodes.CharacterRecipe.INPUT_TYPES()['optional']
+        self.assertIn('hair_id', optional)
+        self.assertIn('hair_source', optional)
+        self.assertNotIn('hair_id', nodes.CharacterRecipe.INPUT_TYPES()['required'])
 
 
 class ResizeOptionTests(unittest.TestCase):
@@ -234,7 +305,7 @@ class ResizeOptionTests(unittest.TestCase):
 
 
 class CharacterRecipeTests(unittest.TestCase):
-    """三合一配方：三路 ID 都是必填字符串，其余参数可省，校验不触发下载。"""
+    """四合一配方：四路 ID 都是必填字符串，其余参数可省，校验不触发下载。"""
 
     def test_three_ids_are_required_and_optional_keys_are_optional(self):
         spec = nodes.CharacterRecipe.INPUT_TYPES()

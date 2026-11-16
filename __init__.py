@@ -112,8 +112,13 @@ class _GalleryNode:
         return {'required': required, 'optional': optional}
 
     @classmethod
+    def _library_for(cls, values):
+        """实际取图的库：单库节点直接用类属性，跨来源节点（发型）按来源控件切。"""
+        return cls.LIBRARY
+
+    @classmethod
     def _relative(cls, values):
-        row = item(cls.LIBRARY, str(values[cls.ID_WIDGET]))
+        row = item(cls._library_for(values), str(values[cls.ID_WIDGET]))
         return pick(row, '原图', values.get(cls.VARIANT_WIDGET))
 
     @classmethod
@@ -136,9 +141,10 @@ class _GalleryNode:
         return f'{cls._relative(values)}:pending:{shape}'
 
     def _load(self, **values):
+        library = self._library_for(values)
         item_id = str(values[self.ID_WIDGET])
-        row = item(self.LIBRARY, item_id)
-        img = _load_rgb(self.LIBRARY, row, values.get(self.VARIANT_WIDGET),
+        row = item(library, item_id)
+        img = _load_rgb(library, row, values.get(self.VARIANT_WIDGET),
                         values.get('resize_mode', RESIZE_MODES[0]),
                         values.get('width', 1024), values.get('height', 1280),
                         bool(values.get('flip_horizontal')))
@@ -445,11 +451,96 @@ class MioGallery(_GalleryNode):
                 row.get('提示词') or '', row.get('提示词中文') or '')
 
 
-class CharacterRecipe(_GalleryNode):
-    """三合一角色配方：一次取脸部、服装、姿势，输出三张图 + 横向参考拼图 + 中英文合成提示词。
+# 发型有两个来源，节点用 hair_source 切换：
+#   澪设计 —— 6 卷 54 件，每件带作者写好的中英文提示词，能整句写进配方的 prompt；
+#   二次元 —— 「发型与眼睛」下 230 条发型，量大、覆盖二次元头型，但只有中日英关键词。
+# 两边编号空间不同（H-01-01 / ANE-H001），切来源时编号要能自动回落，见 _resolve。
+HAIR_SOURCES = {'澪设计': ('mio', 'H-01-01'), '二次元': ('anime', 'ANE-H001')}
 
-    思路参考上游 ai-pose-gallery-zh 的「三合一合成配方」节点，字段换成我们六库的中文索引：
-    脸部定长相与发型，服装定穿着，姿势定动作与构图，三者拼成一张参考整图直接丢给 img2img / ControlNet。
+
+class HairGallery(_GalleryNode):
+    """发型图库：一个节点收两个来源。
+
+    与六个单库节点的差别只在库不是固定的：_library_for 跟着 hair_source 走，
+    加载、校验、缓存继承基类，不另写一套。
+    """
+
+    LIBRARY = 'mio'
+    ID_WIDGET = 'hair_id'
+    DEFAULT_ID = 'H-01-01'
+    FUNCTION = 'load_hair'
+    SOURCE_WIDGET = 'hair_source'
+    ID_TOOLTIP = '点击浏览发型库：澪设计 6 卷 54 件（带作者提示词），或二次元发型 230 条。'
+    RETURN_TYPES = ('IMAGE', 'INT', 'INT', 'STRING', 'STRING', 'STRING', 'STRING')
+    RETURN_NAMES = ('image', 'width', 'height', 'hair_id', 'description', 'prompt', 'prompt_zh')
+    DESCRIPTION = '发型图库：澪设计 54 件（6 卷，作者原版提示词）+ 二次元 230 条动漫头型，切换来源共用一套控件。'
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        data = super().INPUT_TYPES()
+        data['optional'][cls.SOURCE_WIDGET] = (list(HAIR_SOURCES), {
+            'default': '澪设计',
+            'tooltip': '澪设计：6 卷 54 件，每件带作者中英文提示词。二次元：230 条动漫头型，只有关键词。'
+                       '切来源后编号会自动回落到该来源的第一件。',
+        })
+        return data
+
+    @classmethod
+    def _resolve(cls, values):
+        """按来源定库，并把编号约束在该来源的发型里：换了来源但编号还是另一个库的，回落到默认。
+
+        静默回落而不是报错——切来源是下拉框一下的事，节点直接变红不如直接跳到该来源的第一件。
+        """
+        name = str(values.get(cls.SOURCE_WIDGET) or '')
+        library, fallback = HAIR_SOURCES.get(name, HAIR_SOURCES['澪设计'])
+        for candidate in (str(values.get(cls.ID_WIDGET) or fallback), fallback):
+            try:
+                row = item(library, candidate)
+            except ValueError:
+                continue
+            if cls._is_hair(library, row):
+                return library, candidate, row
+        raise ValueError(f'{LIBRARIES[library]["label"]}里找不到可用发型：{values.get(cls.ID_WIDGET)}')
+
+    @staticmethod
+    def _is_hair(library, row):
+        # 澪设计按「分类」分系列（发型 / 服装 / 姿势）；二次元把发型和眼睛放在同一个分类里。
+        return row.get('分类') == ('发型' if library == 'mio' else '发型与眼睛')
+
+    @classmethod
+    def _library_for(cls, values):
+        return cls._resolve(values)[0]
+
+    @classmethod
+    def _relative(cls, values):
+        return pick(cls._resolve(values)[2], '原图', None)
+
+    def _load(self, **values):
+        library, item_id, row = self._resolve(values)
+        img = _load_rgb(library, row, None,
+                        values.get('resize_mode', RESIZE_MODES[0]),
+                        values.get('width', 1024), values.get('height', 1280),
+                        bool(values.get('flip_horizontal')))
+        width, height = img.size
+        if library == 'mio':
+            prompt, prompt_zh = row.get('提示词') or '', row.get('提示词中文') or ''
+        else:
+            # 二次元索引没有整句提示词：英文取「英文关键词」，中文取「关键词」，缺英文时退回日文。
+            prompt = ', '.join(row.get('英文关键词') or []) or row.get('日文') or ''
+            prompt_zh = '、'.join(row.get('关键词') or [])
+        return (_to_tensor(img), width, height, item_id, describe(row), prompt, prompt_zh)
+
+    # ComfyUI 执行时按 FUNCTION 名字取方法：这里少一个 load_hair，节点在画布上能连能点，
+    # 一点运行就报 "missing the load_hair method"。测试直接调 _load 会绕过它，所以另加断言盯住。
+    def load_hair(self, **values):
+        return self._load(**values)
+
+
+class CharacterRecipe(_GalleryNode):
+    """四合一角色配方：一次取发型、脸部、服装、姿势，输出四张图 + 横向参考拼图 + 中英文合成提示词。
+
+    思路参考上游 ai-pose-gallery-zh 的「三合一合成配方」节点，字段换成我们自己的中文索引：
+    发型定头顶造型，脸部定长相，服装定穿着，姿势定动作与构图，四者拼成一张参考整图直接丢给 img2img / ControlNet。
     """
 
     LIBRARY = 'face'
@@ -457,10 +548,12 @@ class CharacterRecipe(_GalleryNode):
     DEFAULT_ID = 'FACE-0001'
     FUNCTION = 'build_recipe'
     CATEGORY = 'image/Reference Gallery'
-    DESCRIPTION = '三合一配方：脸部 + 服装 + 姿势，输出三张图、横向参考拼图与中英文合成提示词。'
-    RETURN_TYPES = ('IMAGE', 'IMAGE', 'IMAGE', 'IMAGE', 'INT', 'INT', 'STRING', 'STRING')
+    DESCRIPTION = '四合一配方：发型 + 脸部 + 服装 + 姿势，输出四张图、横向参考拼图与中英文合成提示词。'
+    RETURN_TYPES = ('IMAGE', 'IMAGE', 'IMAGE', 'IMAGE', 'INT', 'INT', 'STRING', 'STRING', 'IMAGE')
+    # hair_image 追加在末尾而不是插到最前：旧工作流的连线是按序号存的，插到前面会把 face/costume/pose
+    # 全部错位一格，老图一打开就串图。
     RETURN_NAMES = ('face_image', 'costume_image', 'pose_image', 'reference_sheet',
-                    'width', 'height', 'prompt_zh', 'prompt_en')
+                    'width', 'height', 'prompt_zh', 'prompt_en', 'hair_image')
 
     COSTUME_LIBRARIES = ('costume', 'costume-anime')
 
@@ -494,6 +587,12 @@ class CharacterRecipe(_GalleryNode):
                                     {'default': 'costume', 'tooltip': '写实服装或服装动画，编号规则一致。'}),
                 'use_depth': ('BOOLEAN', {'default': False,
                                           'tooltip': '把姿势图换成同编号的深度图，可直接接 ControlNet depth。'}),
+                # 发型是后加的槽位，必须排在已有控件之后：工作流 JSON 里的 widgets_values 是按位置存的，
+                # 插到中间会把老工作流的 pose_angle / costume_library / use_depth 整体错位一格。
+                'hair_id': ('STRING', {'default': 'H-01-01', 'multiline': False,
+                                       'tooltip': '点击浏览发型图库：澪设计 54 件或二次元 230 条。'}),
+                'hair_source': (list(HAIR_SOURCES), {'default': '澪设计',
+                                                     'tooltip': '澪设计带作者原版提示词，二次元量大。切来源后编号自动回落。'}),
             },
         }
 
@@ -502,17 +601,22 @@ class CharacterRecipe(_GalleryNode):
 
     @classmethod
     def IS_CHANGED(cls, **values):
-        """三张图任一换图 / 换版本 / 改尺寸都要重算，缓存键必须覆盖整组参数。"""
+        """四张图任一换图 / 换版本 / 改尺寸都要重算，缓存键必须覆盖整组参数。"""
         costume_lib = values.get('costume_library') or 'costume'
         pose_lib = 'depth' if values.get('use_depth') else 'pose'
         pose_id = str(values.get('pose_id') or 'POS-SEXY-P001')
         if pose_lib == 'depth':
             pose_id = pose_id.replace('POS-', 'DEP-', 1)
         parts = []
-        for library, item_id, variant in (
-                ('face', str(values.get('face_id') or cls.DEFAULT_ID), None),
-                (costume_lib, str(values.get('costume_id') or 'SPR-0001'), None),
-                (pose_lib, pose_id, values.get('pose_angle'))):
+        targets = [('face', str(values.get('face_id') or cls.DEFAULT_ID), None),
+                   (costume_lib, str(values.get('costume_id') or 'SPR-0001'), None),
+                   (pose_lib, pose_id, values.get('pose_angle'))]
+        try:
+            hair_library, hair_id, hair_row = HairGallery._resolve(values)
+        except ValueError:
+            return f'missing:hair:{values.get("hair_id")}'
+        targets.append((hair_library, hair_id, None))
+        for library, item_id, variant in targets:
             try:
                 path = local_path(pick(item(library, item_id), '原图', variant))
             except ValueError:
@@ -524,7 +628,7 @@ class CharacterRecipe(_GalleryNode):
 
     @classmethod
     def VALIDATE_INPUTS(cls, **values):
-        """三个 ID 与服装库都要先校验；只查索引，不触发下载。"""
+        """四个 ID 与服装库都要先校验；只查索引，不触发下载。"""
         try:
             item('face', str(values.get('face_id') or cls.DEFAULT_ID))
             library = values.get('costume_library') or 'costume'
@@ -537,6 +641,8 @@ class CharacterRecipe(_GalleryNode):
                 item('depth', pose_id.replace('POS-', 'DEP-', 1))
             else:
                 item('pose', pose_id)
+            # 发型与 HairGallery 同一套解析：编号跟来源不匹配时会在那里回落到默认件，不会把整条链判失败。
+            HairGallery._resolve(values)
         except ValueError as exc:
             return str(exc)
         return True
@@ -544,7 +650,8 @@ class CharacterRecipe(_GalleryNode):
     def build_recipe(self, face_id=DEFAULT_ID, costume_id='SPR-0001', pose_id='POS-SEXY-P001',
                      style_preset='高清日系动漫', extra_prompt='', resize_mode=RESIZE_MODES[1],
                      width=1024, height=1280, flip_pose_horizontal=False,
-                     pose_angle=None, costume_library='costume', use_depth=False):
+                     pose_angle=None, costume_library='costume', use_depth=False,
+                     hair_id='H-01-01', hair_source='澪设计'):
         # 深度库编号与姿势库一一对应，只是前缀不同（POS- → DEP-），直接换前缀沿用同一套机位。
         pose_library = 'depth' if use_depth else 'pose'
         pose_key = pose_id.replace('POS-', 'DEP-', 1) if use_depth else pose_id
@@ -553,18 +660,22 @@ class CharacterRecipe(_GalleryNode):
         costume_lib = costume_library if costume_library in self.COSTUME_LIBRARIES else 'costume'
         costume_row = item(costume_lib, str(costume_id))
         pose_row = item(pose_library, str(pose_key))
+        hair_library, hair_key, hair_row = HairGallery._resolve(
+            {'hair_id': hair_id, 'hair_source': hair_source})
 
         face_img = _load_rgb('face', face_row, None, resize_mode, width, height, False)
         costume_img = _load_rgb(costume_lib, costume_row, None, resize_mode, width, height, False)
         pose_img = _load_rgb(pose_library, pose_row, pose_angle, resize_mode, width, height,
                              bool(flip_pose_horizontal))
+        hair_img = _load_rgb(hair_library, hair_row, None, resize_mode, width, height, False)
 
-        # 三张统一尺寸后横向拼成一张参考整图。原图尺寸模式下三张大小不一，
-        # 统一按最大宽高居中裁剪，谁都不会被截断成一条边。
-        panel_w = max(face_img.width, costume_img.width, pose_img.width)
-        panel_h = max(face_img.height, costume_img.height, pose_img.height)
-        sheet = Image.new('RGB', (panel_w * 3 + 24, panel_h), PANEL_BG)
-        for index, panel in enumerate((face_img, costume_img, pose_img)):
+        # 四张统一尺寸后横向拼成一张参考整图，顺序按「头顶造型 → 长相 → 穿着 → 动作」：
+        # 原图尺寸模式下四张大小不一，统一按最大宽高居中裁剪，谁都不会被截断成一条边。
+        panels = (hair_img, face_img, costume_img, pose_img)
+        panel_w = max(panel.width for panel in panels)
+        panel_h = max(panel.height for panel in panels)
+        sheet = Image.new('RGB', (panel_w * len(panels) + 12 * (len(panels) - 1), panel_h), PANEL_BG)
+        for index, panel in enumerate(panels):
             fitted = panel if panel.size == (panel_w, panel_h) else ImageOps.fit(
                 panel, (panel_w, panel_h), method=_pil_resampling())
             sheet.paste(fitted, (index * (panel_w + 12), 0))
@@ -574,30 +685,39 @@ class CharacterRecipe(_GalleryNode):
         costume_label = '' if costume_lib == 'costume' else f'·{LIBRARIES[costume_lib]["label"]}'
 
         zh = [f'融合参考图生成一张完整的角色立绘：{style_zh}。',
-              f'【人像与发型】{_describe_zh(face_row)}。',
+              f'【发型】{_describe_zh(hair_row)}。',
+              f'【人像】{_describe_zh(face_row)}。',
               f'【服装{costume_label}】{_describe_zh(costume_row)}。',
               f'【动作与构图】{_describe_zh(pose_row)}。']
+        # 澪设计的发型自带作者整句提示词，比索引关键词准确得多，直接并进去。
+        if hair_library == 'mio' and hair_row.get('提示词'):
+            zh.append(f'【发型细节】{hair_row["提示词中文"] or hair_row["提示词"]}。')
         if extra:
             zh.append(f'【补充细节】{extra}。')
         zh.append('要求面部自然生动，服装贴合身体动态，肢体透视与手部结构准确，光影统一。')
 
-        # 英文只取有英文词条的库（目前只有服装），面部与姿势交给参考图本身，别硬翻日文。
+        # 英文只取有英文词条的库（服装、二次元发型），澪设计的发型与脸部、姿势交给参考图本身，别硬翻中文。
         en = [style_en]
         costume_en = _describe_en(costume_row)
         if costume_en:
             en.append(f'wearing {costume_en}')
-        en.append('match the face, hairstyle and pose from the reference sheet')
+        hair_en = _describe_en(hair_row)
+        if hair_en:
+            en.append(f'hairstyle: {hair_en}')
+        en.append('match the hairstyle, face and pose from the reference sheet')
         if extra:
             en.append(extra)
 
         return (_to_tensor(face_img), _to_tensor(costume_img), _to_tensor(pose_img), _to_tensor(sheet),
-                sheet.width, sheet.height, ''.join(zh), ', '.join(part for part in en if part))
+                sheet.width, sheet.height, ''.join(zh), ', '.join(part for part in en if part),
+                _to_tensor(hair_img))
 
 
 NODE_CLASS_MAPPINGS = {'CostumeGallery': CostumeGallery, 'CostumeAnimeGallery': CostumeAnimeGallery,
                        'PoseGallery': PoseGallery, 'FaceGallery': FaceGallery,
                        'DepthGallery': DepthGallery, 'AnimeGallery': AnimeGallery,
-                       'MioGallery': MioGallery, 'CharacterRecipe': CharacterRecipe}
+                       'HairGallery': HairGallery, 'MioGallery': MioGallery,
+                       'CharacterRecipe': CharacterRecipe}
 NODE_DISPLAY_NAME_MAPPINGS = {
     'CostumeGallery': 'Costume Gallery 服装图库',
     'CostumeAnimeGallery': 'Costume Anime Gallery 服装动画图库',
@@ -605,8 +725,9 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     'FaceGallery': 'Face Gallery 脸部图库',
     'DepthGallery': 'Depth Gallery 深度姿势图库',
     'AnimeGallery': 'Anime Gallery 二次元图库',
+    'HairGallery': 'Hair Gallery 发型图库',
     'MioGallery': 'Mio Gallery 澪设计档案',
-    'CharacterRecipe': 'Character Recipe 三合一角色配方',
+    'CharacterRecipe': 'Character Recipe 四合一角色配方',
 }
 WEB_DIRECTORY = './web'
 __all__ = ['NODE_CLASS_MAPPINGS', 'NODE_DISPLAY_NAME_MAPPINGS', 'WEB_DIRECTORY']

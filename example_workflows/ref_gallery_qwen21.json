@@ -1,0 +1,1454 @@
+{
+  "id": "ref-gallery-qwen21",
+  "revision": 0,
+  "last_node_id": 100,
+  "last_link_id": 30,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "HairGallery",
+      "pos": [
+        40,
+        80
+      ],
+      "size": [
+        380,
+        640
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "hair_id",
+          "type": "STRING",
+          "widget": {
+            "name": "hair_id"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "slot_index": 0,
+          "links": [
+            14
+          ]
+        },
+        {
+          "name": "width",
+          "type": "INT",
+          "slot_index": 1,
+          "links": null
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "slot_index": 2,
+          "links": null
+        },
+        {
+          "name": "hair_id",
+          "type": "STRING",
+          "slot_index": 3,
+          "links": null
+        },
+        {
+          "name": "description",
+          "type": "STRING",
+          "slot_index": 4,
+          "links": null
+        },
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "slot_index": 5,
+          "links": null
+        },
+        {
+          "name": "prompt_zh",
+          "type": "STRING",
+          "slot_index": 6,
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "HairGallery"
+      },
+      "widgets_values": [
+        "H-01-01",
+        "原图尺寸",
+        1024,
+        1280,
+        false,
+        "澪设计"
+      ],
+      "title": "Hair Gallery 发型图库 - 图四提供头顶造型"
+    },
+    {
+      "id": 2,
+      "type": "FaceGallery",
+      "pos": [
+        460,
+        80
+      ],
+      "size": [
+        380,
+        640
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "face_id",
+          "type": "STRING",
+          "widget": {
+            "name": "face_id"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "slot_index": 0,
+          "links": [
+            12
+          ]
+        },
+        {
+          "name": "width",
+          "type": "INT",
+          "slot_index": 1,
+          "links": null
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "slot_index": 2,
+          "links": null
+        },
+        {
+          "name": "face_id",
+          "type": "STRING",
+          "slot_index": 3,
+          "links": null
+        },
+        {
+          "name": "description",
+          "type": "STRING",
+          "slot_index": 4,
+          "links": null
+        },
+        {
+          "name": "description_ja",
+          "type": "STRING",
+          "slot_index": 5,
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "FaceGallery"
+      },
+      "widgets_values": [
+        "FACE-0817",
+        "原图尺寸",
+        1024,
+        1280,
+        false
+      ],
+      "title": "Face Gallery 脸部图库 - 图二提供身份"
+    },
+    {
+      "id": 3,
+      "type": "CostumeGallery",
+      "pos": [
+        880,
+        80
+      ],
+      "size": [
+        380,
+        640
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "costume_id",
+          "type": "STRING",
+          "widget": {
+            "name": "costume_id"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "slot_index": 0,
+          "links": [
+            13
+          ]
+        },
+        {
+          "name": "width",
+          "type": "INT",
+          "slot_index": 1,
+          "links": null
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "slot_index": 2,
+          "links": null
+        },
+        {
+          "name": "costume_id",
+          "type": "STRING",
+          "slot_index": 3,
+          "links": null
+        },
+        {
+          "name": "description",
+          "type": "STRING",
+          "slot_index": 4,
+          "links": null
+        },
+        {
+          "name": "keywords_en",
+          "type": "STRING",
+          "slot_index": 5,
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CostumeGallery"
+      },
+      "widgets_values": [
+        "SPR-0002",
+        "原图尺寸",
+        1024,
+        1280,
+        false
+      ],
+      "title": "Costume Gallery 服装图库 - 图三提供目标服装"
+    },
+    {
+      "id": 4,
+      "type": "PoseGallery",
+      "pos": [
+        1300,
+        80
+      ],
+      "size": [
+        380,
+        640
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "slot_index": 0,
+          "links": [
+            11
+          ]
+        },
+        {
+          "name": "width",
+          "type": "INT",
+          "slot_index": 1,
+          "links": null
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "slot_index": 2,
+          "links": null
+        },
+        {
+          "name": "pose_id",
+          "type": "STRING",
+          "slot_index": 3,
+          "links": null
+        },
+        {
+          "name": "description",
+          "type": "STRING",
+          "slot_index": 4,
+          "links": null
+        },
+        {
+          "name": "description_ja",
+          "type": "STRING",
+          "slot_index": 5,
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PoseGallery"
+      },
+      "widgets_values": [
+        "POS-SEXY-P031",
+        "原图尺寸",
+        1024,
+        1280,
+        false,
+        "正面"
+      ],
+      "title": "Pose Gallery 姿势图库 - 图一提供动作与构图"
+    },
+    {
+      "id": 5,
+      "type": "TextEncodeQwenImage21",
+      "pos": [
+        40,
+        800
+      ],
+      "size": [
+        620,
+        560
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 5
+        },
+        {
+          "name": "images.image_1",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": 11
+        },
+        {
+          "name": "images.image_2",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": 12
+        },
+        {
+          "name": "images.image_3",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": 13
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "shape": 7,
+          "link": 7
+        },
+        {
+          "name": "images.image_4",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": 14
+        }
+      ],
+      "outputs": [
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "slot_index": 0,
+          "links": [
+            15
+          ]
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "slot_index": 1,
+          "links": [
+            16
+          ]
+        },
+        {
+          "name": "latent",
+          "type": "LATENT",
+          "slot_index": 2,
+          "links": [
+            17
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.43.0",
+        "Node name for S&R": "TextEncodeQwenImage21"
+      },
+      "widgets_values": [
+        "Create one coherent image from four references with separate roles. Image1 is the body-pose reference: follow its limb placement, body orientation, camera viewpoint and framing exactly. Image2 is the face and identity reference: keep this person's facial features, face shape, skin tone and overall look, and continue that same person downwards into a full body. Image3 is the outfit reference: dress the person in the garments and accessories shown there, preserving their colors, patterns, materials, layering and design details. Image4 is the hairstyle reference: use its length, cut, bangs, parting and hair color for the top of the head, overriding the hair seen in Image2. Combine them into a single photo of one person: the body in the pose of Image1, the head of Image2, the clothes of Image3, the hair of Image4. Fit the clothes naturally to the posed body with coherent folds and occlusion, and keep the head, neck and shoulders anatomy consistent with the rest of the body. Do not copy the grey mannequin, line drawing, plain backdrop or annotations from the references, and do not produce a reference sheet or collage.",
+        "",
+        1024
+      ],
+      "title": "Text Encode Qwen Image 2.1 - 姿势 / 脸部 / 服装 / 发型四库分工"
+    },
+    {
+      "id": 6,
+      "type": "KSampler",
+      "pos": [
+        700,
+        800
+      ],
+      "size": [
+        400,
+        262
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 3
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 15
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 16
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 17
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "slot_index": 0,
+          "links": [
+            18
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.43.0",
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        20261116,
+        "fixed",
+        25,
+        1,
+        "euler",
+        "simple",
+        1
+      ],
+      "title": "KSampler - 单独节点这条路"
+    },
+    {
+      "id": 7,
+      "type": "VAEDecode",
+      "pos": [
+        700,
+        1120
+      ],
+      "size": [
+        300,
+        78
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 18
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 8
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "slot_index": 0,
+          "links": [
+            19
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.43.0",
+        "Node name for S&R": "VAEDecode"
+      },
+      "widgets_values": null
+    },
+    {
+      "id": 8,
+      "type": "SaveImage",
+      "pos": [
+        1140,
+        800
+      ],
+      "size": [
+        460,
+        600
+      ],
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 19
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.43.0",
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "ref_gallery/single/result"
+      ],
+      "title": "Save Image - 单独节点成图"
+    },
+    {
+      "id": 9,
+      "type": "LoadImage",
+      "pos": [
+        1740,
+        80
+      ],
+      "size": [
+        420,
+        520
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "COMBO",
+          "widget": {
+            "name": "image"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "slot_index": 0,
+          "links": null
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "slot_index": 1,
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.43.0",
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "",
+        "image"
+      ],
+      "title": "Load Image 自上传照片（备用：把 image_2 的线拖过来）"
+    },
+    {
+      "id": 20,
+      "type": "CharacterRecipe",
+      "pos": [
+        40,
+        1620
+      ],
+      "size": [
+        600,
+        900
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "face_image",
+          "type": "IMAGE",
+          "slot_index": 0,
+          "links": [
+            21
+          ]
+        },
+        {
+          "name": "costume_image",
+          "type": "IMAGE",
+          "slot_index": 1,
+          "links": [
+            22
+          ]
+        },
+        {
+          "name": "pose_image",
+          "type": "IMAGE",
+          "slot_index": 2,
+          "links": [
+            20
+          ]
+        },
+        {
+          "name": "reference_sheet",
+          "type": "IMAGE",
+          "slot_index": 3,
+          "links": [
+            30
+          ]
+        },
+        {
+          "name": "width",
+          "type": "INT",
+          "slot_index": 4,
+          "links": null
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "slot_index": 5,
+          "links": null
+        },
+        {
+          "name": "prompt_zh",
+          "type": "STRING",
+          "slot_index": 6,
+          "links": [
+            24
+          ]
+        },
+        {
+          "name": "prompt_en",
+          "type": "STRING",
+          "slot_index": 7,
+          "links": null
+        },
+        {
+          "name": "hair_image",
+          "type": "IMAGE",
+          "slot_index": 8,
+          "links": [
+            23
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CharacterRecipe"
+      },
+      "widgets_values": [
+        "FACE-0817",
+        "SPR-0002",
+        "POS-SEXY-P031",
+        "高清日系动漫",
+        "银色双眸，教室窗边逆光，微风吹拂发丝",
+        "指定尺寸（居中裁剪）",
+        896,
+        1152,
+        false,
+        "正面",
+        "costume",
+        false,
+        "H-01-01",
+        "澪设计"
+      ],
+      "title": "Character Recipe 四合一角色配方"
+    },
+    {
+      "id": 21,
+      "type": "TextEncodeQwenImage21",
+      "pos": [
+        700,
+        1620
+      ],
+      "size": [
+        620,
+        560
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 6
+        },
+        {
+          "name": "prompt",
+          "type": "STRING",
+          "link": 24
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 9
+        },
+        {
+          "name": "images.image_1",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": 20
+        },
+        {
+          "name": "images.image_2",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": 21
+        },
+        {
+          "name": "images.image_3",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": 22
+        },
+        {
+          "name": "images.image_4",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": 23
+        }
+      ],
+      "outputs": [
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "slot_index": 0,
+          "links": [
+            25
+          ]
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "slot_index": 1,
+          "links": [
+            26
+          ]
+        },
+        {
+          "name": "latent",
+          "type": "LATENT",
+          "slot_index": 2,
+          "links": [
+            27
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.43.0",
+        "Node name for S&R": "TextEncodeQwenImage21"
+      },
+      "widgets_values": [
+        "融合参考图生成一张完整的角色立绘。",
+        "",
+        1024
+      ],
+      "title": "Text Encode Qwen Image 2.1 - 提示词由配方节点拼好并连入"
+    },
+    {
+      "id": 22,
+      "type": "KSampler",
+      "pos": [
+        1360,
+        1620
+      ],
+      "size": [
+        400,
+        262
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 4
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 25
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 26
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 27
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "slot_index": 0,
+          "links": [
+            28
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.43.0",
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        20261116,
+        "fixed",
+        25,
+        1,
+        "euler",
+        "simple",
+        1
+      ],
+      "title": "KSampler - 配方这条路"
+    },
+    {
+      "id": 23,
+      "type": "VAEDecode",
+      "pos": [
+        1360,
+        1920
+      ],
+      "size": [
+        300,
+        78
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 28
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 10
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "slot_index": 0,
+          "links": [
+            29
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.43.0",
+        "Node name for S&R": "VAEDecode"
+      },
+      "widgets_values": null
+    },
+    {
+      "id": 24,
+      "type": "SaveImage",
+      "pos": [
+        1800,
+        1620
+      ],
+      "size": [
+        460,
+        600
+      ],
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 29
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.43.0",
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "ref_gallery/recipe/result"
+      ],
+      "title": "Save Image - 配方成图"
+    },
+    {
+      "id": 25,
+      "type": "SaveImage",
+      "pos": [
+        1800,
+        2260
+      ],
+      "size": [
+        460,
+        600
+      ],
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 30
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.43.0",
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "ref_gallery/recipe/reference_sheet"
+      ],
+      "title": "Save Image - 四合一参考整图"
+    },
+    {
+      "id": 30,
+      "type": "UNETLoader",
+      "pos": [
+        2380,
+        80
+      ],
+      "size": [
+        420,
+        106
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "slot_index": 0,
+          "links": [
+            1
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.43.0",
+        "Node name for S&R": "UNETLoader"
+      },
+      "widgets_values": [
+        "qwen_image_2.1_int8_convrot.safetensors",
+        "default"
+      ]
+    },
+    {
+      "id": 31,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        2380,
+        220
+      ],
+      "size": [
+        420,
+        106
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 1
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "slot_index": 0,
+          "links": [
+            2
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.43.0",
+        "Node name for S&R": "LoraLoaderModelOnly"
+      },
+      "widgets_values": [
+        "VNCCS_QI2_PoseStudioV2.safetensors",
+        1
+      ]
+    },
+    {
+      "id": 32,
+      "type": "QwenImage21Cache",
+      "pos": [
+        2380,
+        360
+      ],
+      "size": [
+        420,
+        130
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 2
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "slot_index": 0,
+          "links": [
+            3,
+            4
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.43.0",
+        "Node name for S&R": "QwenImage21Cache"
+      },
+      "widgets_values": [
+        "auto",
+        "default"
+      ]
+    },
+    {
+      "id": 33,
+      "type": "CLIPLoader",
+      "pos": [
+        2380,
+        530
+      ],
+      "size": [
+        420,
+        130
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "slot_index": 0,
+          "links": [
+            5,
+            6
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.43.0",
+        "Node name for S&R": "CLIPLoader"
+      },
+      "widgets_values": [
+        "qwen3vl_8b_int8_convrot.safetensors",
+        "qwen_image",
+        "default"
+      ]
+    },
+    {
+      "id": 34,
+      "type": "VAELoader",
+      "pos": [
+        2380,
+        700
+      ],
+      "size": [
+        420,
+        82
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "slot_index": 0,
+          "links": [
+            7,
+            8,
+            9,
+            10
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.43.0",
+        "Node name for S&R": "VAELoader"
+      },
+      "widgets_values": [
+        "qwen_image_2.1_vae_bf16.safetensors"
+      ]
+    },
+    {
+      "id": 100,
+      "type": "MarkdownNote",
+      "pos": [
+        40,
+        2960
+      ],
+      "size": [
+        1700,
+        900
+      ],
+      "flags": {},
+      "order": 15,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "MarkdownNote - 两种用法、四图顺序与发型来源",
+      "properties": {
+        "Node name for S&R": "MarkdownNote"
+      },
+      "widgets_values": [
+        "# 参考图库 · 四库出图（Qwen Image 2.1）\n\n一份文件两种用法，共用左下角同一套模型加载与采样参数：\n\n| 分组 | 取素材方式 | 适合 |\n| --- | --- | --- |\n| ① 单独节点（左上） | 发型 / 脸部 / 服装 / 姿势 四个节点各点一次 | 想逐张换、逐张对比 |\n| ② 四合一配方（左下） | `Character Recipe` 一个节点四行点完 | 常规出图，提示词自动拼好 |\n\n两条链互不干扰，只跑其中一条时把另一条的 `KSampler` 静音（Ctrl+M）更省显存。\n\n## 参考图顺序固定，不能交换\n\n| 端口 | 单独节点 | 配方输出 | 给什么 |\n| --- | --- | --- | --- |\n| `image_1` | 姿势图库 | `pose_image` | 动作、四肢位置、身体朝向、机位与构图 |\n| `image_2` | 脸部图库 | `face_image` | 身份、脸型、五官、肤色 |\n| `image_3` | 服装图库 | `costume_image` | 服装、配饰、颜色、材质与层次 |\n| `image_4` | 发型图库 | `hair_image` | 头顶造型：长短、刘海、分缝、发色 |\n\n## 发型库两个来源\n\n`Hair Gallery` 的 `hair_source` 下拉切换：\n\n- **澪设计**：6 卷 54 件，每件带作者写好的中英文提示词，配方节点的 `prompt_zh` 会把这句并进【发型细节】。\n- **二次元**：230 条动漫头型，只有关键词，量大但需要自己在 `extra_prompt` 里补细节。\n\n切来源后编号会自动回落到该来源的第一件；手动改编号时注意 `澪设计` 是 `H-01-01` 形态，`二次元` 是 `ANE-H001` 形态。\n\n## 用自己的照片当脸\n\n左上有一张空的 `Load Image`（不接任何线就不会执行）。把自己照片放进去，然后把编码器 `image_2` 上那根来自 `Face Gallery` 的线拖到它上面即可，其余不动。\n\n## 提示词\n\n单独节点那条链的提示词写在编码器里（已经按四张参考分好工）。配方那条链把 `prompt_zh` 连到编码器的 `prompt`，内容由节点按素材拼：\n\n```\n融合参考图生成一张完整的角色立绘：{风格}。\n【发型】{发型分类：关键词}。\n【人像】{脸部分类：关键词}。\n【服装】{服装分类：关键词}。\n【动作与构图】{姿势分类：关键词}。\n【发型细节】{澪设计作者原句}。\n【补充细节】{extra_prompt}。\n要求面部自然生动，服装贴合身体动态，肢体透视与手部结构准确，光影统一。\n```\n\n想用英文就改接 `prompt_en`；想完全手写就断掉这条线。`prompt_en` 少一截细节不是 bug——脸部与姿势索引没有英文词条，硬翻会让模型更糊涂。\n\n## 素材怎么选\n\n每个图库节点点「浏览…图库」，在弹窗里按中文、编号或关键词搜，选中点「使用此素材」。任意「加载图像」节点底部也有「从参考图库导入」按钮，选中后原图会复制到 `ComfyUI/input/ref_<编号>.png` 并自动填入。\n\n节点内只显示缩略图。原图本地有就直接读，没有会自动从作者站点取一次并缓存到 `library/<库>/png/`，之后完全离线。\n\n## 参数\n\n25 步 / CFG 1 / euler / simple，种子固定；LoRA `VNCCS_QI2_PoseStudioV2` 强度 1，必须放 `models/loras/` 根目录（子目录在 Windows 下路径是反斜杠，匹配不到）。\n\n配方节点的 `resize_mode` 默认「指定尺寸（居中裁剪）」896×1152；单独节点那条链用「原图尺寸」，四张各自原比例进编码器，成图比例跟随 `image_1`。\n\n## 深度模式\n\n配方节点打开 `use_depth` 后姿势槽改读深度库（`POS-` → `DEP-`），`pose_image` 变灰度深度图。**实测深度图不适合直接当 Qwen 的视觉参考**，模型会把它读成白色人体结构；正确用法是接 ControlNet depth，把 `pose_image` 连过去即可。本工作流没有内置这一路，因为需要额外的 Qwen Image ControlNet 模型。\n\n## 输出\n\n| 目录（`output/` 下） | 内容 |\n| --- | --- |\n| `ref_gallery/single/result` | 单独节点那条链的成图 |\n| `ref_gallery/recipe/result` | 配方那条链的成图 |\n| `ref_gallery/recipe/reference_sheet` | 四合一参考整图，留档对照 |\n"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    }
+  ],
+  "links": [
+    [
+      1,
+      30,
+      0,
+      31,
+      0,
+      "MODEL"
+    ],
+    [
+      2,
+      31,
+      0,
+      32,
+      0,
+      "MODEL"
+    ],
+    [
+      3,
+      32,
+      0,
+      6,
+      0,
+      "MODEL"
+    ],
+    [
+      4,
+      32,
+      0,
+      22,
+      0,
+      "MODEL"
+    ],
+    [
+      5,
+      33,
+      0,
+      5,
+      0,
+      "CLIP"
+    ],
+    [
+      6,
+      33,
+      0,
+      21,
+      0,
+      "CLIP"
+    ],
+    [
+      7,
+      34,
+      0,
+      5,
+      4,
+      "VAE"
+    ],
+    [
+      8,
+      34,
+      0,
+      7,
+      1,
+      "VAE"
+    ],
+    [
+      9,
+      34,
+      0,
+      21,
+      2,
+      "VAE"
+    ],
+    [
+      10,
+      34,
+      0,
+      23,
+      1,
+      "VAE"
+    ],
+    [
+      11,
+      4,
+      0,
+      5,
+      1,
+      "IMAGE"
+    ],
+    [
+      12,
+      2,
+      0,
+      5,
+      2,
+      "IMAGE"
+    ],
+    [
+      13,
+      3,
+      0,
+      5,
+      3,
+      "IMAGE"
+    ],
+    [
+      14,
+      1,
+      0,
+      5,
+      5,
+      "IMAGE"
+    ],
+    [
+      15,
+      5,
+      0,
+      6,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      16,
+      5,
+      1,
+      6,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      17,
+      5,
+      2,
+      6,
+      3,
+      "LATENT"
+    ],
+    [
+      18,
+      6,
+      0,
+      7,
+      0,
+      "LATENT"
+    ],
+    [
+      19,
+      7,
+      0,
+      8,
+      0,
+      "IMAGE"
+    ],
+    [
+      20,
+      20,
+      2,
+      21,
+      3,
+      "IMAGE"
+    ],
+    [
+      21,
+      20,
+      0,
+      21,
+      4,
+      "IMAGE"
+    ],
+    [
+      22,
+      20,
+      1,
+      21,
+      5,
+      "IMAGE"
+    ],
+    [
+      23,
+      20,
+      8,
+      21,
+      6,
+      "IMAGE"
+    ],
+    [
+      24,
+      20,
+      6,
+      21,
+      1,
+      "STRING"
+    ],
+    [
+      25,
+      21,
+      0,
+      22,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      26,
+      21,
+      1,
+      22,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      27,
+      21,
+      2,
+      22,
+      3,
+      "LATENT"
+    ],
+    [
+      28,
+      22,
+      0,
+      23,
+      0,
+      "LATENT"
+    ],
+    [
+      29,
+      23,
+      0,
+      24,
+      0,
+      "IMAGE"
+    ],
+    [
+      30,
+      20,
+      3,
+      25,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "groups": [
+    {
+      "id": 1,
+      "title": "① 单独节点：发型 / 脸部 / 服装 / 姿势 各取一张 → 一次出图",
+      "bounding": [
+        0,
+        0,
+        2220,
+        1420
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 2,
+      "title": "② 四合一配方：一个节点取齐四样，提示词自动拼好",
+      "bounding": [
+        0,
+        1540,
+        2300,
+        1380
+      ],
+      "color": "#8a6d3b",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 3,
+      "title": "③ 模型与采样（两条链共用）",
+      "bounding": [
+        2320,
+        0,
+        520,
+        820
+      ],
+      "color": "#5a5a5a",
+      "font_size": 20,
+      "flags": {}
+    }
+  ],
+  "config": {},
+  "extra": {
+    "workflowName": "参考图库 · 四库出图（单独节点 / 四合一配方）"
+  },
+  "version": 0.4
+}

@@ -18,9 +18,9 @@ A ComfyUI node pack that turns six public AI-reference libraries (costume / cost
 
 另有一个「澪设计档案」库（`MioGallery`，387 件）**不属于这六个**，也**不占六库页签**：它是按作者系列分卷的设计档案（每卷 9 件），每件带作者写好的中英文提示词，浏览页面独立在 `/ref_lookbook/mio`。源站单件与合集都只发布一档（没有大图目录），本库的图按每卷合集重切（见下方「画质上限」），所以这个库的定位是「参考 + 提示词」，不是高分辨率出图素材——想要大图就靠它给的 prompt 重绘。
 
-另外两个节点不属于六库：`CharacterRecipe`（三合一角色配方）把脸部、服装、姿势合成一次取图，输出一张参考整图 + 中英文合成提示词；`MioGallery`（澪设计档案）单取一件，输出图 + 作者原版中英文提示词。
+另有三个节点不属于六库：`CharacterRecipe`（四合一角色配方）把发型、脸部、服装、姿势合成一次取图，输出四张图 + 一张参考整图 + 中英文合成提示词；`HairGallery`（发型图库）把澪设计与二次元两个来源里的发型抽成一个节点，靠一个下拉切换；`MioGallery`（澪设计档案）单取一件，输出图 + 作者原版中英文提示词。
 
-当前版本 **v1.6.5**。每个版本新增了什么、修了什么，见[更新日志](更新日志.md)。
+当前版本 **v1.7.0**。每个版本新增了什么、修了什么，见[更新日志](更新日志.md)。
 
 ## 安装
 
@@ -70,7 +70,7 @@ Windows 下直接双击 `start_gallery.bat` 也行（没装 Python 时会提示�
 
 ## 用法
 
-1. 添加节点：`image → Reference Gallery → 服装 / 服装动画 / 姿势 / 脸部 / 深度姿势 / 二次元图库`，以及三合一角色配方。
+1. 添加节点：`image → Reference Gallery → 服装 / 服装动画 / 姿势 / 脸部 / 深度姿势 / 二次元 / 发型`，以及四合一角色配方。
 2. 点「浏览…图库」开弹窗。菜单三层：最上面一级选「日系图库 / 澪图库」，日系图库下二级页签切换六个库，三级分类按钮再按分类筛；支持中英日关键词与编号搜索（空格分隔按「同时包含」筛选）。点节点上的预览图也能打开。
 3. 点卡片看大图，点「使用此素材 → ComfyUI」把编号写回节点（姿势同时写 `angle`，二次元同时写 `variant`）。
 4. 姿势与深度姿势可在图库和节点上切换视角：正面 / 俯视 / 仰视 / 侧面 / 斜 45°；二次元库可切换彩图 / 线稿（线稿只覆盖姿势组）。
@@ -78,7 +78,8 @@ Windows 下直接双击 `start_gallery.bat` 也行（没装 Python 时会提示�
 6. 直接开 `?lib=pose&id=POS-SEXY-P001` 可定位到某条素材；再带 `&angle=斜45°`（二次元用 `&angle=线稿`）能直接切到该形态。
 7. 深度姿势库可以直接接 ControlNet：`DepthGallery` 的 `image` 输出就是灰度深度图，连到 `ControlNetApplyAdvanced` 的 `image` 即可，不需要再加预处理器（图已经是深度图，再过一遍 depth 预处理器等于重复处理）。姿势库与深度姿势库编号一一对应，`POS-SEXY-P031` 对应 `DEP-SEXY-P031`，想要「线稿控姿态」用姿势库、想要「深度控体积」用深度姿势库。
 8. 澪设计档案（`MioGallery`）走自己的页面，但版式与六库页一致：一级菜单点「澪图库」，二级页签选系列（全部 / 发型 / 服装 / 姿势），三级卷条选卷，点作品看大图与中英文提示词，两个「复制」按钮直接拿走去用。独立启动时也可以直接开 `http://127.0.0.1:8180/ref_lookbook/mio`，`#all` / `#s-hair` / `#hair-01` 可定位。
-9. 三合一配方节点 `CharacterRecipe`：脸、服装、姿势三行各自有按钮和缩略图，点哪个换哪个；`style_preset` 选风格方向盘（日系动漫 / 写实摄影 / 韩系半厚涂 / 角色设定图），`extra_prompt` 补细节。打开 `use_depth` 时姿势槽位自动改读深度库（`POS-` → `DEP-`），预览也跟着变，直接接 ControlNet depth。输出里 `reference_sheet` 是三张并排的参考整图，适合丢给 img2img 或作为视觉参考。
+9. 四合一配方节点 `CharacterRecipe`：发型、脸、服装、姿势四行各自有按钮和缩略图，点哪个换哪个；`style_preset` 选风格方向盘（日系动漫 / 写实摄影 / 韩系半厚涂 / 角色设定图），`extra_prompt` 补细节。发型槽自带来源下拉（澪设计 / 二次元），在弹窗里切到另一边选了一件，来源开关会跟着拨过去。打开 `use_depth` 时姿势槽位自动改读深度库（`POS-` → `DEP-`），预览也跟着变，直接接 ControlNet depth。输出里 `reference_sheet` 是四张并排的参考整图，适合丢给 img2img 或作为视觉参考。
+10. 发型图库（`HairGallery`）是独立节点：`hair_source` 切换「澪设计」（6 卷 54 件，带作者原版中英文提示词）与「二次元」（230 条动漫头型，只有关键词）。切来源后编号若不是该来源的形态会自动回落，不用手动改。输出多了 `prompt` / `prompt_zh` 两路，可以直接接 CLIP Text Encode。
 
 ![图库弹窗](example_workflows/assets/ui/gallery-window.jpg)
 
@@ -86,36 +87,30 @@ Windows 下直接双击 `start_gallery.bat` 也行（没装 Python 时会提示�
 
 ## 示例工作流
 
-两版，按手上有多少耐心选。
+**只有一个文件**：[ref_gallery_qwen21.json](example_workflows/ref_gallery_qwen21.json)（31 KB），拖进画布即可。以前分成「三库组合」和「三合一配方」两份，现在合成一份——同一套模型加载与采样，并排放两条出图链，想用哪条跑哪条。
 
-**三合一配方（推荐）**：下载 [ref_recipe_qwen21.json](example_workflows/ref_recipe_qwen21.json)（12 KB），拖进画布即可。`CharacterRecipe` 一个节点取齐脸、服装、姿势，拼好的中文提示词直接连进 `TextEncodeQwenImage21`，还顺带输出三张并排的参考整图留档。不需要任何额外插件。
+| 分组 | 取素材方式 | 适合 |
+| --- | --- | --- |
+| ① 单独节点（画布上方） | 发型 / 脸部 / 服装 / 姿势 四个图库节点各点一次 | 想逐张换、逐张对比 |
+| ② 四合一配方（画布下方） | `CharacterRecipe` 一个节点四行点完，提示词自动拼好 | 常规出图 |
 
-[使用指南](example_workflows/ref_recipe_qwen21.md) 讲参考图分工、提示词三条切法、深度模式与切库参数，以及深度图为什么不能直接当 Qwen 的参考。
+参考图顺序两边一致，固定不能交换：`image_1` 姿势定动作与构图、`image_2` 脸定身份、`image_3` 服装定穿着、`image_4` 发型定头顶造型。配方那条链把这四路输出原样接进编码器，`prompt_zh` 也自动连过去，只剩点按钮。
 
-![三合一配方工作流](example_workflows/assets/ui/workflow-recipe-overview.jpg)
+不需要任何额外插件——上一版「三库组合」用的 `Fast Muter`（rgthree-comfy）没并进来，所以这份 json 只用 ComfyUI 内置节点。想用自己的照片当脸，画布右上有一张空的 `Load Image`，把 `image_2` 那根线拖过去即可，其余不动。
 
-| 三张参考 → 成图 |
-| --- |
-| ![配方成图](example_workflows/assets/compare/recipe-classroom.jpg) |
+[使用指南](example_workflows/ref_gallery_qwen21.md) 讲四张参考的分工、发型库两个来源、提示词三条切法、深度模式与切库参数，以及深度图为什么不能直接当 Qwen 的参考。
 
-**三库组合**：下载 [ref_gallery_combo_qwen21.json](example_workflows/ref_gallery_combo_qwen21.json)（30 KB）。三个图库节点各自取图——姿势给动作与构图、脸给身份与发型、服装给衣服，不需要真人照片；画布上方的 `Fast Muter` 可一键切到「自上传模式」，用自己的照片当脸，不用改连线。这一版要装 [rgthree-comfy](https://github.com/rgthree/rgthree-comfy)。
-
-[使用指南](example_workflows/ref_gallery_combo_qwen21.md) 讲依赖、参数与脸部来源切换。
-
-![工作流总览](example_workflows/assets/ui/workflow-overview.jpg)
-
-| 线稿人偶 + 脸 + 服装 → 成图 | 自上传照片当脸 → 成图 |
+| 线稿人偶 + 脸 + 服装 + 发型 → 成图 | 四张参考 → 成图（四合一配方） |
 | --- | --- |
-| ![三库组合](example_workflows/assets/compare/pose-mint-cat.jpg) | ![自上传模式](example_workflows/assets/compare/photo-white-cat.jpg) |
+| ![四库组合](example_workflows/assets/compare/pose-mint-cat.jpg) | ![配方成图](example_workflows/assets/compare/recipe-classroom.jpg) |
 
-其余对比与成图见[使用指南](example_workflows/ref_gallery_combo_qwen21.md#效果)。
+其余对比与成图见[使用指南](example_workflows/ref_gallery_qwen21.md#效果)。
 
 ## 工作流依赖
 
 | 工作流 | 额外插件 |
 | --- | --- |
-| `ref_recipe_qwen21`（三合一配方） | 无，只用 ComfyUI 内置节点 |
-| `ref_gallery_combo_qwen21`（三库组合） | [rgthree-comfy](https://github.com/rgthree/rgthree-comfy)，提供 `Fast Muter` 等模式切换节点，ComfyUI Manager 搜 `rgthree` 装完重启 |
+| `ref_gallery_qwen21`（四库出图，两种用法一份文件） | 无，只用 ComfyUI 内置节点 |
 
 模型四个，自行准备，放好后重启 ComfyUI。
 
@@ -157,19 +152,32 @@ LoRA 是 AHEKOT 的 VNCCS PoseStudio Qwen Image 2.1 v2.0：[Civitai](https://civ
 | `prompt` | STRING | 作者原版英文提示词，可直接进 CLIP Text Encode |
 | `prompt_zh` | STRING | 作者原版中文提示词（逐条对照，不是机器翻译） |
 
+`HairGallery` 的输出（多了两路提示词）：
+
+| 输出 | 类型 | 内容 |
+| --- | --- | --- |
+| `image` | IMAGE | 发型参考图 |
+| `width` / `height` | INT | 实际输出尺寸 |
+| `hair_id` | STRING | 编号，如 `H-01-01`（澪设计）/ `ANE-H001`（二次元） |
+| `description` | STRING | 系列 / 卷 / 分类关键词 |
+| `prompt` | STRING | 英文提示词：澪设计取作者原版整句，二次元取英文关键词 |
+| `prompt_zh` | STRING | 中文提示词：澪设计取作者原版，二次元取中文关键词 |
+
 `CharacterRecipe` 的输出：
 
 | 输出 | 类型 | 内容 |
 | --- | --- | --- |
-| `face_image` / `costume_image` / `pose_image` | IMAGE | 三张参考图，已统一尺寸 |
-| `reference_sheet` | IMAGE | 三张横向拼图（间隔 12 px，白底），定人 + 定装 + 定动作一张看全 |
+| `face_image` / `costume_image` / `pose_image` / `hair_image` | IMAGE | 四张参考图，已统一尺寸 |
+| `reference_sheet` | IMAGE | 四张横向拼图（间隔 12 px，白底），定头顶造型 + 定人 + 定装 + 定动作一张看全 |
 | `width` / `height` | INT | 拼图尺寸 |
-| `prompt_zh` | STRING | 中文合成提示词：风格 + 人像发型 + 服装 + 动作构图 + 补充细节 |
-| `prompt_en` | STRING | 英文合成提示词：风格 + 服装英文关键词 + 「参考图定脸和姿势」。脸部与姿势索引没有英文词条，不硬翻日文 |
+| `prompt_zh` | STRING | 中文合成提示词：风格 + 发型 + 人像 + 服装 + 动作构图 + 澪设计发型原句 + 补充细节 |
+| `prompt_en` | STRING | 英文合成提示词：风格 + 服装英文关键词 + 发型英文关键词 + 「参考图定脸和姿势」。脸部与姿势索引没有英文词条，不硬翻日文 |
 
-配方节点的 `costume_library` 可切写实服装 / 服装动画（编号规则一致），`use_depth` 打开时姿势取同编号深度图。`pose_angle` 是姿势的五个机位。
+`hair_image` 排在输出末尾而不是插进前面：旧工作流的连线按序号存，插到中间会让 `face` / `costume` / `pose` 全部错位一格，老图一打开就串图。
 
-姿势与深度姿势节点额外有 `angle` 下拉（默认「正面」），二次元节点有 `variant` 下拉（默认「彩图」）。标签可能不完整，只作检索提示。这八个节点只提供参考图，本身不换装、不换脸。
+配方节点的 `costume_library` 可切写实服装 / 服装动画（编号规则一致），`use_depth` 打开时姿势取同编号深度图，`hair_source` 切发型来源。`pose_angle` 是姿势的五个机位。
+
+姿势与深度姿势节点额外有 `angle` 下拉（默认「正面」），二次元节点有 `variant` 下拉（默认「彩图」）。标签可能不完整，只作检索提示。这九个节点只提供参考图，本身不换装、不换脸。
 
 ## 图片怎么来
 
@@ -214,7 +222,7 @@ comfyui-ref-lookbook/
 ├── start_gallery.bat    # Windows 双击启动
 ├── example_workflows/   # 示例工作流 + 说明 + 效果图
 ├── licenses/            # 上游参考项目的许可原文
-└── tests/               # 98 个 Python 测试 + 11 个前端测试
+└── tests/               # 120 个 Python 测试 + 13 个前端测试
 ```
 
 `<库>/thumbs/` 随仓库内置（8,411 张 WebP，离线开箱可浏览）；`<库>/png/`、`<库>/img/` 进 `.gitignore`，只留 `.gitkeep` 占位。原图一律运行时获取：你在弹窗里看过、或在节点上出过图的那张，就落进对应目录，之后不再下载。
@@ -272,7 +280,7 @@ node --test tests/test_preview.mjs
 node --check web/ref_gallery.js && node --check web/gallery.mjs
 ```
 
-100 个 Python 测试覆盖索引完整性、深度图与姿势图逐条对齐、二次元线稿与彩图配对、服装动画与服装编号重合但路径互不干扰、缩略图逐条在库、路径穿越与越库访问拒绝、按视角 / 形态取图、上游地址模板（含线稿的 `line/` 路径）、缓存命中、离线提示、节点预览 URL 与错误回退、按需缓存的 remote 参数，澪设计档案的平铺结构（原图与缩略图同文件、JPEG 从合集重切、每张长边 418 px、43 卷覆盖全量、每条都带中英提示词）、它与六库编号零交集、独立页面路由与「不进整库下载」、两个页面的一级菜单只有两项且当前页标记正确、澪页与六库页共用同一份样式表和同一个骨架（旧的 mio.css 必须 404）；外加独立 HTTP 服务的路由、白名单与穿越防护；11 个前端测试覆盖预览取图、视角联动、缩略图占位、旧请求不覆盖新选择，以及三合一配方节点的三槽位取图、深度开关联动与画布绘制。
+112 个 Python 测试覆盖索引完整性、深度图与姿势图逐条对齐、二次元线稿与彩图配对、服装动画与服装编号重合但路径互不干扰、缩略图逐条在库、路径穿越与越库访问拒绝、按视角 / 形态取图、上游地址模板（含线稿的 `line/` 路径）、缓存命中、离线提示、节点预览 URL 与错误回退、按需缓存的 remote 参数，澪设计档案的平铺结构（原图与缩略图同文件、JPEG 从合集重切、每张长边 418 px、43 卷覆盖全量、每条都带中英提示词）、它与六库编号零交集、独立页面路由与「不进整库下载」、两个页面的一级菜单只有两项且当前页标记正确、澪页与六库页共用同一份样式表和同一个骨架（旧的 mio.css 必须 404）；外加独立 HTTP 服务的路由、白名单与穿越防护；13 个前端测试覆盖预览取图、视角联动、缩略图占位、旧请求不覆盖新选择，发型节点按来源切库与编号回落，以及四合一配方节点的四槽位取图、深度开关联动与画布绘制。另有 8 个测试专门盯示例工作流的结构：只允许存在一份 json、连线两端都成立、`widgets_values` 个数与 `INPUT_TYPES` 对得上（加槽位最容易在这儿错位）、配方四条参考的顺序与来源、单独节点那条链的 `image_4` 必须来自发型库。
 
 ## 权利联系
 

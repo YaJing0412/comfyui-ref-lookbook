@@ -1,7 +1,7 @@
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
 
-// 六个自有图库节点
+// 自有图库节点：六个单库 + 发型（两个来源）+ 澪设计档案 + 角色配方（四合一）
 const LIBRARIES = {
   CostumeGallery: {
     library: "costume",
@@ -42,11 +42,34 @@ const LIBRARIES = {
     label: "二次元",
     button: "浏览二次元图库 · 服装 / 发型与眼睛 / 姿势",
   },
-  // 三合一配方：一个节点挂三个库，各自一个按钮、一张缩略图。
+  // 发型：一个节点两个来源，库名跟着 hair_source 控件走。
+  // 两个来源各有自己的浏览页面，所以打开时按当前来源决定去哪：
+  // 澪设计是独立档案页，带 #s-hair 直接落到发型系列；二次元在六库页里，带 cat 直接落到发型分类。
+  HairGallery: {
+    library: "mio",
+    sourceWidget: "hair_source",
+    sourceMap: { "澪设计": "mio", "二次元": "anime" },
+    idDefaults: { mio: "H-01-01", anime: "ANE-H001" },
+    openFor: {
+      mio: { page: "mio", hash: "#s-hair" },
+      anime: { query: `cat=${encodeURIComponent("发型与眼睛")}` },
+    },
+    idWidget: "hair_id",
+    label: "发型",
+    button: "浏览发型库 · 澪设计 54 件 / 二次元 230 条",
+  },
+  // 四合一配方：一个节点挂四个槽（发型 / 脸 / 服装 / 姿势），各自一个按钮、一张缩略图。
   CharacterRecipe: {
     label: "角色配方",
     slots: [
-      { library: "face", idWidget: "face_id", label: "脸部", button: "选脸部 / 发型" },
+      // 发型槽自带来源切换：澪设计（mio）或二次元（anime），选完自动把开关拨到对应那边。
+      { library: "mio", sourceWidget: "hair_source",
+        sourceMap: { "澪设计": "mio", "二次元": "anime" },
+        idDefaults: { mio: "H-01-01", anime: "ANE-H001" },
+        openFor: { mio: { page: "mio", hash: "#s-hair" },
+                   anime: { query: `cat=${encodeURIComponent("发型与眼睛")}` } },
+        idWidget: "hair_id", label: "发型", button: "选发型（澪设计 / 二次元）" },
+      { library: "face", idWidget: "face_id", label: "脸部", button: "选脸部" },
       { library: "costume", idWidget: "costume_id", label: "服装", button: "选服装（写实 / 动画）" },
       { library: "pose", idWidget: "pose_id", variantWidget: "pose_angle", label: "姿势",
         button: "选姿势（跟随深度开关）", depthIdWidget: "use_depth" },
@@ -68,7 +91,7 @@ let activeDialog = null;
 
 // 六个节点与「任意加载图像节点」共用同一个选择器：图库页里可以随时切库。
 // page：某些库有独立页面（目前只有 mio），此时直接开那个页面，不带 ?lib= 参数。
-function openGalleryDialog({ library, title, onSelect, page }) {
+function openGalleryDialog({ library, title, onSelect, page, query, hash }) {
   activeDialog?.close();
   let frame = null;
 
@@ -89,9 +112,12 @@ function openGalleryDialog({ library, title, onSelect, page }) {
   header.append(label, done);
 
   frame = document.createElement("iframe");
-  frame.src = page
+  // query / hash 用来把用户直接送到要选的那一类：澪设计送 #s-hair（发型系列），
+  // 二次元送 cat=发型与眼睛（发型分类）。没有就能省掉，不影响别的库。
+  const base = page
     ? api.apiURL(`/ref_lookbook/${page}`)
-    : api.apiURL(`/ref_lookbook/gallery?lib=${library}`);
+    : api.apiURL(`/ref_lookbook/gallery?lib=${library}${query ? `&${query}` : ""}`);
+  frame.src = hash ? `${base}${hash}` : base;
   frame.title = "参考图库";
   frame.style.cssText = "width:100%;height:calc(100% - 48px);border:0;";
   dialog.append(header, frame);
@@ -204,6 +230,12 @@ app.registerExtension({
       // 形态维度的控件名各库不同：姿势 / 深度姿势是 angle（五个机位），二次元是 variant（彩图 / 线稿）。
       const variantName = config.variantWidget || config.angleWidget;
       const angleWidget = variantName ? node.widgets.find((w) => w.name === variantName) : null;
+      // 来源控件（目前只有发型节点有）：库名跟着它走，澪设计 → mio，二次元 → anime。
+      const sourceWidget = config.sourceWidget
+        ? node.widgets.find((w) => w.name === config.sourceWidget) ?? null
+        : null;
+      const currentLibrary = () =>
+        (sourceWidget && config.sourceMap?.[String(sourceWidget.value)]) || config.library;
 
       // 预览直接画在节点画布上，不用 DOM 控件：DOM 控件的定位由前端布局决定，
       // 一旦图片原始尺寸大于分配区域就会溢出节点边框。
@@ -216,7 +248,7 @@ app.registerExtension({
         const angle = angleWidget ? String(angleWidget.value ?? "") : "";
         const query = angle ? `?angle=${encodeURIComponent(angle)}` : "";
         // 节点内只用内置缩略图：仓库随包发行 thumbs，离线可预览；个别缺失时服务端按需向作者站点取一次。
-        return api.apiURL(`/ref_lookbook/asset/${config.library}/thumbs/${encodeURIComponent(id)}${query}`);
+        return api.apiURL(`/ref_lookbook/asset/${currentLibrary()}/thumbs/${encodeURIComponent(id)}${query}`);
       };
 
       const markReady = () => {
@@ -235,7 +267,7 @@ app.registerExtension({
         const itemId = String(value.value);
         const url = sourceOf(itemId);
         const suffix = angleWidget ? `（${angleWidget.value}）` : "";
-        const note = `${config.label}缩略图缺失：${itemId}${suffix}。内置图库不完整，请重新安装节点以补齐 library/${config.library}/thumbs。`;
+        const note = `${config.label}缩略图缺失：${itemId}${suffix}。内置图库不完整，请重新安装节点以补齐 library/${currentLibrary()}/thumbs。`;
         previewState = "loading";
         node.setDirtyCanvas(true, false);
         previewImage.onload = () => {
@@ -258,29 +290,52 @@ app.registerExtension({
         if (previewImage.complete && previewImage.naturalWidth) markReady();
       };
 
-      const bind = (widget) => {
+      // 换了来源但编号还是另一个库的：回落到该来源的默认编号。两个库的编号空间不重叠
+      // （H-01-01 / ANE-H001），不换的话预览会一直 404——后端其实会自动回落，但控件上还显示旧编号，对不上。
+      const syncSourceId = () => {
+        if (!sourceWidget || !value) return;
+        const library = currentLibrary();
+        const itemId = String(value.value ?? "");
+        const fits = library === "mio" ? /^H-\d{2}-\d{2}$/.test(itemId) : itemId.startsWith("ANE-");
+        if (!fits && config.idDefaults?.[library]) value.value = config.idDefaults[library];
+      };
+
+      const bind = (widget, extra) => {
         if (!widget) return;
         const previous = widget.callback;
         widget.callback = function () {
           previous?.apply(this, arguments);
+          extra?.();
           update();
         };
       };
       bind(value);
       bind(angleWidget);
+      bind(sourceWidget, syncSourceId);
 
       function openPicker() {
+        const library = currentLibrary();
+        const target = config.openFor?.[library] ?? {};
         const useLabel = config.useLabel || `使用此${config.label}`;
         openGalleryDialog({
-          library: config.library,
-          page: config.page,
+          library,
+          page: target.page ?? config.page,
+          query: target.query,
+          hash: target.hash,
           title: `参考图库 · 选择${config.label}后点击「${useLabel}」`,
           onSelect: (data) => {
-            if (data.library && data.library !== config.library) return;
+            // 带来源的节点（发型）：用户在弹窗里切到另一个来源选了一件，就把开关拨过去再收下；
+            // 没有来源切换的节点（澪设计档案）照旧只收本库的编号。
+            if (config.sourceMap) {
+              const name = Object.keys(config.sourceMap).find((key) => config.sourceMap[key] === data.library);
+              if (name && sourceWidget) sourceWidget.value = name;
+              else if (data.library && data.library !== currentLibrary()) return;
+            } else if (data.library && data.library !== config.library) return;
             value.value = data.id;
             if (angleWidget && typeof data.angle === "string" && data.angle) angleWidget.value = data.angle;
             value.callback?.(value.value);
             angleWidget?.callback?.(angleWidget.value);
+            sourceWidget?.callback?.(sourceWidget.value);
             node.setDirtyCanvas(true, true);
             app.graph.change();
           },
@@ -387,8 +442,8 @@ app.registerExtension({
   },
 });
 
-// 三合一配方节点：脸部 / 服装 / 姿势三个库各一个按钮、一张缩略图，点图直接换该槽位的素材。
-// 预览区横向三等分，比单图节点占地方，默认节点也开得更大。
+// 四合一配方节点：发型 / 脸部 / 服装 / 姿势四个槽各一个按钮、一张缩略图，点图直接换该槽位的素材。
+// 预览区按槽位数等分，比单图节点占地方，默认节点也开得更大。
 function registerRecipeNode(nodeType, config) {
   const created = nodeType.prototype.onNodeCreated;
   nodeType.prototype.onNodeCreated = function () {
@@ -404,18 +459,22 @@ function registerRecipeNode(nodeType, config) {
         idWidget: widgetOf(slot.idWidget),
         variantWidget: widgetOf(slot.variantWidget),
         depthWidget: widgetOf(slot.depthIdWidget),
+        // slot.sourceWidget 是控件名，这里换成控件本身；带来源的槽（发型）靠它决定读哪个库。
+        sourceControl: widgetOf(slot.sourceWidget),
         image,
         state: "idle",
       };
     });
 
     // 深度开关打开时，姿势槽位改读深度库，编号前缀 POS- → DEP-（两库 288 条一一对应）。
+    // 发型槽没有深度开关，走 sourceControl 那条分支。
     const resolve = (slot) => {
       const depth = Boolean(slot.depthWidget?.value) && slot.library === "pose";
       const raw = String(slot.idWidget?.value ?? "");
+      const bySource = slot.sourceControl ? slot.sourceMap?.[String(slot.sourceControl.value)] : "";
       return {
         depth,
-        library: depth ? "depth" : slot.library,
+        library: bySource || (depth ? "depth" : slot.library),
         id: depth ? raw.replace(/^POS-/, "DEP-") : raw,
         angle: slot.variantWidget ? String(slot.variantWidget.value ?? "") : "",
       };
@@ -444,11 +503,21 @@ function registerRecipeNode(nodeType, config) {
       node.setDirtyCanvas(true, false);
     };
 
-    const bind = (widget) => {
+    // 换了来源但编号还是另一个库的：换成该来源的默认编号（H-01-01 / ANE-H001），否则缩略图一直缺图。
+    const syncSourceId = (slot) => {
+      if (!slot.sourceControl || !slot.idWidget) return;
+      const library = slot.sourceMap?.[String(slot.sourceControl.value)];
+      const itemId = String(slot.idWidget.value ?? "");
+      const fits = library === "mio" ? /^H-\d{2}-\d{2}$/.test(itemId) : itemId.startsWith("ANE-");
+      if (!fits && slot.idDefaults?.[library]) slot.idWidget.value = slot.idDefaults[library];
+    };
+
+    const bind = (widget, extra) => {
       if (!widget) return;
       const previous = widget.callback;
       widget.callback = function () {
         previous?.apply(this, arguments);
+        extra?.();
         update();
       };
     };
@@ -456,6 +525,7 @@ function registerRecipeNode(nodeType, config) {
       bind(slot.idWidget);
       bind(slot.variantWidget);
       bind(slot.depthWidget);
+      bind(slot.sourceControl, () => syncSourceId(slot));
     });
 
     const widgetBottom = (widget) => {
@@ -486,11 +556,23 @@ function registerRecipeNode(nodeType, config) {
     };
 
     const openPicker = (slot) => {
+      const library = slot.sourceControl
+        ? (slot.sourceMap?.[String(slot.sourceControl.value)] || slot.library)
+        : slot.library;
+      const target = slot.openFor?.[library] ?? {};
       openGalleryDialog({
-        library: slot.library,
+        library,
+        page: target.page ?? slot.page,
+        query: target.query,
+        hash: target.hash,
         title: `参考图库 · 选择${slot.label}后点击「使用此${slot.label}」`,
         onSelect: (data) => {
           if (!slot.idWidget) return;
+          // 带来源的槽（发型）：用户在弹窗里切到另一个来源选了一件，就把来源开关拨过去再收下。
+          if (slot.sourceMap) {
+            const name = Object.keys(slot.sourceMap).find((key) => slot.sourceMap[key] === data.library);
+            if (name && slot.sourceControl) slot.sourceControl.value = name;
+          }
           const pickedDepth = data.library === "depth" && slot.depthWidget;
           slot.idWidget.value = pickedDepth ? String(data.id).replace(/^DEP-/, "POS-") : data.id;
           if (pickedDepth) slot.depthWidget.value = true;
@@ -498,6 +580,7 @@ function registerRecipeNode(nodeType, config) {
           slot.idWidget.callback?.(slot.idWidget.value);
           slot.variantWidget?.callback?.(slot.variantWidget.value);
           slot.depthWidget?.callback?.(slot.depthWidget.value);
+          slot.sourceControl?.callback?.(slot.sourceControl.value);
           node.setDirtyCanvas(true, true);
           app.graph.change();
         },
@@ -580,7 +663,8 @@ function registerRecipeNode(nodeType, config) {
       activeDialog?.close();
       removed?.apply(this, arguments);
     };
-    node.setSize([480, 900]);
+    // 四个槽位横排，默认比三槽时更宽一点，否则每张图窄得看不清。
+    node.setSize([600, 900]);
     update();
   };
 }
@@ -598,7 +682,7 @@ function registerImporter(nodeType, nodeData) {
 
     node.addWidget(
       "button",
-      "从参考图库导入 · 服装 / 姿势 / 脸部",
+      "从参考图库导入 · 服装 / 姿势 / 脸部 / 发型",
       null,
       () => {
         const dialog = openGalleryDialog({

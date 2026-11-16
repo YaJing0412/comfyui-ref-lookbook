@@ -223,7 +223,30 @@ test('preview falls back to the lower half instead of drawing nothing', async ()
   assert.equal(ctx.images.length, 1, '空间不够也要兜底画出来，不能一片空白');
 });
 
+test('hair node preview follows its source switch', async () => {
+  const { createNode, images } = harness();
+  const widgets = [
+    { name: 'hair_id', value: 'H-01-01' },
+    { name: 'hair_source', value: '澪设计' },
+  ];
+  const node = await createNode('HairGallery', widgets, { name: 'HairGallery' });
+  assert.equal(images[0].src, '/api/ref_lookbook/asset/mio/thumbs/H-01-01',
+    '澪设计来源读的是 mio 库');
+  assert.equal(node.widgets.find((w) => w.name === 'browse')?.name ?? 'browse', 'browse');
+
+  const source = widgets.find((widget) => widget.name === 'hair_source');
+  source.value = '二次元';
+  source.callback();
+  assert.equal(widgets.find((w) => w.name === 'hair_id').value, 'ANE-H001',
+    '换了来源要回落到该来源的第一件，否则预览一直 404');
+  assert.equal(images[0].src, '/api/ref_lookbook/asset/anime/thumbs/ANE-H001',
+    '二次元来源读的是 anime 库');
+});
+
 const recipeWidgets = () => ([
+  // 槽位顺序按 config.slots：发型 → 脸 → 服装 → 姿势，所以预览图也是这个次序。
+  { name: 'hair_id', value: 'H-01-01' },
+  { name: 'hair_source', value: '澪设计' },
   { name: 'face_id', value: 'FACE-0001' },
   { name: 'costume_id', value: 'SPR-0001' },
   { name: 'pose_id', value: 'POS-SEXY-P001' },
@@ -234,10 +257,27 @@ const recipeWidgets = () => ([
 test('recipe node loads one preview per library slot', async () => {
   const { createNode, images } = harness();
   await createNode('CharacterRecipe', recipeWidgets(), { name: 'CharacterRecipe' });
-  assert.equal(images.length, 3, '脸部 / 服装 / 姿势各一张预览');
-  assert.equal(images[0].src, '/api/ref_lookbook/asset/face/thumbs/FACE-0001');
-  assert.equal(images[1].src, '/api/ref_lookbook/asset/costume/thumbs/SPR-0001');
-  assert.equal(images[2].src, '/api/ref_lookbook/asset/pose/thumbs/POS-SEXY-P001?angle=%E6%AD%A3%E9%9D%A2');
+  assert.equal(images.length, 4, '发型 / 脸部 / 服装 / 姿势各一张预览');
+  assert.equal(images[0].src, '/api/ref_lookbook/asset/mio/thumbs/H-01-01',
+    '发型槽读的是澪设计库，不是六库里的某个库');
+  assert.equal(images[1].src, '/api/ref_lookbook/asset/face/thumbs/FACE-0001');
+  assert.equal(images[2].src, '/api/ref_lookbook/asset/costume/thumbs/SPR-0001');
+  assert.equal(images[3].src, '/api/ref_lookbook/asset/pose/thumbs/POS-SEXY-P001?angle=%E6%AD%A3%E9%9D%A2');
+});
+
+test('recipe node hair slot follows its source switch', async () => {
+  const { createNode, images } = harness();
+  const node = await createNode('CharacterRecipe', recipeWidgets(), { name: 'CharacterRecipe' });
+  const source = node.widgets.find((widget) => widget.name === 'hair_source');
+  source.value = '二次元';
+  source.callback();
+  const hair = node.widgets.find((widget) => widget.name === 'hair_id');
+  assert.equal(hair.value, 'ANE-H001', '换了来源但编号还是澪设计的形态，要回落到该来源的第一件');
+  assert.equal(images[0].src, '/api/ref_lookbook/asset/anime/thumbs/ANE-H001');
+
+  source.value = '澪设计';
+  source.callback();
+  assert.equal(hair.value, 'H-01-01', '切回来同样要回落，不能停在 ANE-H001 上');
 });
 
 test('recipe node pose slot follows the depth switch', async () => {
@@ -245,17 +285,18 @@ test('recipe node pose slot follows the depth switch', async () => {
   const node = await createNode('CharacterRecipe', recipeWidgets(), { name: 'CharacterRecipe' });
   node.widgets.find((widget) => widget.name === 'use_depth').value = true;
   node.widgets.find((widget) => widget.name === 'use_depth').callback();
-  assert.equal(images[2].src, '/api/ref_lookbook/asset/depth/thumbs/DEP-SEXY-P001?angle=%E6%AD%A3%E9%9D%A2',
+  assert.equal(images[3].src, '/api/ref_lookbook/asset/depth/thumbs/DEP-SEXY-P001?angle=%E6%AD%A3%E9%9D%A2',
     '打开深度后姿势槽位要读深度库，编号前缀换成 DEP-');
 });
 
-test('recipe node draws its three panels on the canvas', async () => {
+test('recipe node draws its four panels on the canvas', async () => {
   const { createNode, images } = harness();
   const node = await createNode('CharacterRecipe', recipeWidgets(), { name: 'CharacterRecipe' });
   images.forEach((image) => image.load(400, 600));
   const ctx = drawText(node);
-  assert.equal(ctx.images.length, 3, '三个槽位都应画出来');
-  assert.ok(ctx.texts.includes('脸部') && ctx.texts.includes('服装') && ctx.texts.includes('姿势'));
+  assert.equal(ctx.images.length, 4, '四个槽位都应画出来');
+  assert.ok(ctx.texts.includes('发型') && ctx.texts.includes('脸部') &&
+    ctx.texts.includes('服装') && ctx.texts.includes('姿势'));
   for (const rect of ctx.images) {
     assert.ok(rect.w > 0 && rect.h > 0);
   }

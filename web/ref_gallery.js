@@ -703,3 +703,197 @@ function registerImporter(nodeType, nodeData) {
     );
   };
 }
+
+// ── 示例工作流的「选一组跑」开关 ──
+//
+// 合并后的示例工作流有两条链（① 单独节点取图、② 四合一配方），共用同一组模型加载。
+// 点一次运行两条都会跑，白等一半时间；手动静音又得一个个节点点。
+// 这个节点把两组各做成一个按钮，点哪组只开哪组、另一组整组静音。
+// 纯前端节点：不进 prompt，不参与后端校验，也不依赖任何第三方插件。
+const SWITCH_SLOTS = [
+  { key: "①", label: "① 单独节点取图" },
+  { key: "②", label: "② 四合一配方" },
+];
+// LiteGraph 的 NEVER：节点不执行，输出也不向下游透传（BYPASS 是 4，会透传，整组关不干净）。
+const SWITCH_MUTED = 2;
+const SWITCH_PAD = 10;
+const SWITCH_BUTTON_TOP = 8;
+const SWITCH_BUTTON_HEIGHT = 28;
+const SWITCH_BUTTON_GAP = 6;
+
+function switchButtons(width, state) {
+  const boxWidth = Math.max(160, (width || 300) - SWITCH_PAD * 2);
+  return SWITCH_SLOTS.map((slot, index) => ({
+    slot,
+    index,
+    on: Boolean(state?.[index]),
+    x: SWITCH_PAD,
+    y: SWITCH_BUTTON_TOP + index * (SWITCH_BUTTON_HEIGHT + SWITCH_BUTTON_GAP),
+    w: boxWidth,
+    h: SWITCH_BUTTON_HEIGHT,
+  }));
+}
+
+function groupBySlot(graph, key) {
+  const groups = graph?._groups || graph?.groups || [];
+  return groups.find((group) => String(group?.title || "").includes(key)) || null;
+}
+
+// 组框取法：新版 LiteGraph 存成 _bounding（Float32Array），老版是 bounding，
+// 再不行退回 pos + size。三种命名都认，免得前端一升级就静音错节点。
+function groupBox(group) {
+  const box = group?.bounding || group?._bounding;
+  if (box && box.length >= 4) return [box[0], box[1], box[2], box[3]];
+  const pos = group?.pos || group?._pos || [0, 0];
+  const size = group?.size || group?._size || [0, 0];
+  return [pos[0], pos[1], size[0], size[1]];
+}
+
+// 按节点中心判断归属：节点比组框略大一点也能正确归位，不依赖组内缓存。
+function nodesInside(group, nodes) {
+  if (!group) return [];
+  const [x, y, w, h] = groupBox(group);
+  return (nodes || []).filter((node) => {
+    const size = node?.size || [0, 0];
+    const cx = (node.pos?.[0] ?? 0) + size[0] / 2;
+    const cy = (node.pos?.[1] ?? 0) + size[1] / 2;
+    return cx >= x && cx <= x + w && cy >= y && cy <= y + h;
+  });
+}
+
+// 把开关状态套到画布上：开着的一组 mode=0，关掉的一组整组静音。
+function applySwitchState(graph, state, self) {
+  let changed = false;
+  SWITCH_SLOTS.forEach((slot, index) => {
+    const group = groupBySlot(graph, slot.key);
+    if (!group) return;
+    const mode = state?.[index] ? 0 : SWITCH_MUTED;
+    nodesInside(group, graph?._nodes).forEach((node) => {
+      if (node === self) return;
+      if (node.mode !== mode) {
+        node.mode = mode;
+        changed = true;
+      }
+      node.setDirtyCanvas?.(true, false);
+    });
+  });
+  return changed;
+}
+
+app.registerExtension({
+  name: "comfyui-ref-lookbook.workflow-switch",
+  registerCustomNodes() {
+    const NODE_TYPE = "ref_lookbook/WorkflowSwitch";
+
+    // 可重入：新版前端把 LiteGraph 拆成异步 chunk，registerCustomNodes 可能早于它执行，
+    // 那时 window.LiteGraph 还是 undefined。直接 return 的话节点类型永远不注册，
+    // 工作流一打开就是「缺节点」——所以失败时轮询重试，注册成功即停。
+    const register = () => {
+      const LiteGraph = globalThis.LiteGraph;
+      if (!LiteGraph?.LGraphNode || typeof LiteGraph.registerNodeType !== "function") return false;
+      if (LiteGraph.registered_node_types?.[NODE_TYPE]) return true;
+
+      class WorkflowSwitch extends LiteGraph.LGraphNode {
+        constructor() {
+          super("示例开关");
+          this.title = "示例开关 · 点一下选跑哪一组";
+          this.size = [300, 78];
+          this.resizable = false;
+          this.isVirtualNode = true; // 不进 prompt，不会被当成缺后端类
+          this.color = "#223";
+          this.bgcolor = "#335";
+          this.properties = { on: [true, false] };
+        }
+
+        // 存盘的开关状态；格式不对（旧版本、手改过 json）就退回默认，别让按钮变成未定义。
+        get state() {
+          const raw = this.properties?.on;
+          if (Array.isArray(raw) && raw.length === SWITCH_SLOTS.length) return raw.map(Boolean);
+          return SWITCH_SLOTS.map((_, index) => index === 0);
+        }
+
+        buttons() {
+          return switchButtons(this.size?.[0], this.state);
+        }
+
+        apply() {
+          // 顺手把坏掉的存盘状态归一：手改过 json 或旧版本存下来时，下次保存就干净了。
+          this.properties.on = [...this.state];
+          const changed = applySwitchState(this.graph, this.state, this);
+          if (changed) {
+            this.graph?.setDirtyCanvas?.(true, true);
+            this.graph?.change?.();
+          }
+          this.setDirtyCanvas?.(true, true);
+          return changed;
+        }
+
+        // 单选：点哪组只开哪组。点当前已开的那组不做反应，避免两组全关后运行报「没有输出」。
+        pick(index) {
+          this.properties.on = SWITCH_SLOTS.map((_, i) => i === index);
+          this.apply();
+        }
+
+        onConfigure(...args) {
+          super.onConfigure?.(...args);
+          this.properties.on = [...this.state];
+          // 刚加载时组框和节点可能还没全部就位，等一帧再套用。
+          setTimeout(() => this.apply(), 0);
+        }
+
+        onDrawForeground(ctx) {
+          ctx.save();
+          ctx.textBaseline = "middle";
+          ctx.font = "13px sans-serif";
+          for (const button of this.buttons()) {
+            ctx.beginPath();
+            if (ctx.roundRect) ctx.roundRect(button.x, button.y, button.w, button.h, 5);
+            else ctx.rect(button.x, button.y, button.w, button.h);
+            ctx.fillStyle = button.on ? "#2f6b45" : "#3a3f4a";
+            ctx.fill();
+            ctx.lineWidth = 1;
+            ctx.strokeStyle = button.on ? "#6fd39a" : "#6b7280";
+            ctx.stroke();
+            ctx.fillStyle = button.on ? "#e8fbf0" : "#b9c0cc";
+            ctx.textAlign = "left";
+            ctx.fillText(button.slot.label, button.x + 10, button.y + button.h / 2);
+            ctx.textAlign = "right";
+            ctx.fillText(button.on ? "运行中" : "已静音", button.x + button.w - 12, button.y + button.h / 2);
+          }
+          ctx.restore();
+        }
+
+        onMouseDown(event, pos) {
+          const x = pos?.[0] ?? -1;
+          const y = pos?.[1] ?? -1;
+          for (const button of this.buttons()) {
+            const inside = x >= button.x && x <= button.x + button.w &&
+              y >= button.y && y <= button.y + button.h;
+            if (!inside) continue;
+            if (!button.on) this.pick(button.index);
+            return true; // 吃掉这次按下，别让它变成拖动节点
+          }
+          return false;
+        }
+      }
+
+      WorkflowSwitch.title = "示例开关 · 选跑哪一组";
+      WorkflowSwitch.category = "参考图库";
+      // 不补进节点库：这是工作流配套的开关，没有后端实现，列出来只会让人以为能单独用。
+      WorkflowSwitch.skip_list = true;
+      LiteGraph.registerNodeType(NODE_TYPE, WorkflowSwitch);
+      globalThis.RefLookbookWorkflowSwitch = WorkflowSwitch; // 前端测试取用
+      return true;
+    };
+
+    if (register()) return;
+    let tries = 0;
+    const timer = setInterval(() => {
+      if (register() || (tries += 1) > 200) clearInterval(timer); // 最多等 10 秒
+    }, 50);
+  },
+  loadedGraphNode(node) {
+    if (node?.type === "ref_lookbook/WorkflowSwitch") node.apply?.();
+  },
+});
+

@@ -22,6 +22,14 @@ BUILTIN = {'UNETLoader', 'LoraLoaderModelOnly', 'QwenImage21Cache', 'CLIPLoader'
            'TextEncodeQwenImage21', 'KSampler', 'VAEDecode', 'SaveImage', 'LoadImage',
            'ImageStitch', 'MarkdownNote'}
 
+# 只有前端、没有 Python 类的节点（web/ref_gallery.js 里 LiteGraph.registerNodeType 注册）。
+FRONTEND = {'ref_lookbook/WorkflowSwitch'}
+
+# 开关节点按组标题里的序号找组，标题改了开关就哑了，所以标题当成契约来断言。
+SLOT_ONE = '①'
+SLOT_TWO = '②'
+SLOT_SHARED = '③'
+
 
 def load(path=SINGLE):
     return json.loads(path.read_text(encoding='utf-8'))
@@ -39,7 +47,7 @@ class WorkflowShapeTests(unittest.TestCase):
         self.assertEqual(files, ['ref_gallery_qwen21.json'])
 
     def test_node_types_are_known(self):
-        known = set(nodes.NODE_CLASS_MAPPINGS) | BUILTIN
+        known = set(nodes.NODE_CLASS_MAPPINGS) | BUILTIN | FRONTEND
         unknown = sorted({node['type'] for node in self.workflow['nodes']} - known)
         self.assertEqual(unknown, [], f'工作流里有不认识的节点：{unknown}')
 
@@ -145,5 +153,87 @@ class RecipeWiringTests(unittest.TestCase):
                 self.assertEqual(source['type'], kind)
 
 
+class SwitchTests(unittest.TestCase):
+    """「选一组跑」开关：组标题、组内节点、默认静音状态三边必须对得上。
+
+    `web/ref_gallery.js` 是拿组的 bounding 与节点中心点判断归属的，这里用同一套
+    算法在 Python 里复算一遍——两边一旦分叉，用户点开关就会静音到错的节点。
+    """
+
+    def setUp(self):
+        self.workflow = load()
+        self.nodes = {node['id']: node for node in self.workflow['nodes']}
+
+    def group_of(self, key):
+        titles = [group for group in self.workflow.get('groups', []) if key in group['title']]
+        self.assertEqual(len(titles), 1, f'含「{key}」的分组应该正好一个，实际 {len(titles)}')
+        return titles[0]
+
+    def nodes_in(self, key):
+        x, y, w, h = self.group_of(key)['bounding']
+        inside = []
+        for node in self.workflow['nodes']:
+            if node['type'] in FRONTEND:
+                continue
+            size = node.get('size') or [0, 0]
+            center_x = node['pos'][0] + size[0] / 2
+            center_y = node['pos'][1] + size[1] / 2
+            if x <= center_x <= x + w and y <= center_y <= y + h:
+                inside.append(node)
+        return inside
+
+    def test_switch_node_exists_and_defaults_to_first_group(self):
+        switches = [node for node in self.workflow['nodes'] if node['type'] in FRONTEND]
+        self.assertEqual(len(switches), 1, '开关应该正好一个')
+        switch = switches[0]
+        self.assertEqual(switch['properties']['on'], [True, False], '默认只跑 ①')
+        self.assertEqual(switch.get('mode', 0), 0, '开关自己不能被静音，否则按钮跟着变灰')
+
+    def test_groups_are_labelled_for_the_switch(self):
+        """开关按 ① / ② 认组；标题里的序号改了就点不动，所以把序号当契约。"""
+        self.assertEqual(len(self.nodes_in(SLOT_ONE)), 9, '① 组是四个图库节点 + 编码 + 采样 + 解码 + 存图')
+        self.assertEqual(len(self.nodes_in(SLOT_TWO)), 6, '② 组是配方 + 编码 + 采样 + 解码 + 两张存图')
+
+    def test_default_state_matches_saved_modes(self):
+        """json 里就把 ② 组标成静音：前端脚本没跑起来时也不能两条一起跑。"""
+        for node in self.nodes_in(SLOT_ONE):
+            with self.subTest(node=node['id']):
+                self.assertEqual(node.get('mode', 0), 0, '① 组默认要跑')
+        for node in self.nodes_in(SLOT_TWO):
+            with self.subTest(node=node['id']):
+                self.assertEqual(node.get('mode', 0), 2, '② 组默认静音')
+
+    def test_shared_model_group_is_never_switched(self):
+        """模型加载两条链共用，被一起静音就两条都跑不了。"""
+        shared = self.nodes_in(SLOT_SHARED)
+        self.assertGreaterEqual(len(shared), 5, '③ 组应该含整套模型加载')
+        for node in shared:
+            with self.subTest(node=node['id']):
+                self.assertEqual(node.get('mode', 0), 0, '共用的模型节点不该带静音')
+
+    def test_each_node_belongs_to_exactly_one_group(self):
+        """一个节点只能落在一个组里，否则两组抢着改它的 mode，状态就打架了。"""
+        buckets = {key: {node['id'] for node in self.nodes_in(key)}
+                   for key in (SLOT_ONE, SLOT_TWO, SLOT_SHARED)}
+        total = sum(len(ids) for ids in buckets.values())
+        union = set().union(*buckets.values())
+        self.assertEqual(total, len(union), f'有节点落在多个组里：{buckets}')
+        note = next(node for node in self.workflow['nodes'] if node['type'] == 'MarkdownNote')
+        self.assertNotIn(note['id'], union, '说明节点落在组内，点开关会被一起静音')
+
+    def test_switch_sits_outside_every_group(self):
+        """开关自己不能落在某个组里，否则切到那组时它会把自己也静音掉。"""
+        switch = next(node for node in self.workflow['nodes'] if node['type'] in FRONTEND)
+        size = switch['size']
+        center_x = switch['pos'][0] + size[0] / 2
+        center_y = switch['pos'][1] + size[1] / 2
+        for group in self.workflow.get('groups', []):
+            x, y, w, h = group['bounding']
+            with self.subTest(group=group['title']):
+                self.assertFalse(x <= center_x <= x + w and y <= center_y <= y + h,
+                                 f'开关落进了「{group["title"]}」')
+
+
 if __name__ == '__main__':
     unittest.main()
+

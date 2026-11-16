@@ -37,7 +37,8 @@ class FakeContext {
 function harness() {
   const images = [];
   const dialogs = [];
-  let extension;
+  const extensions = [];
+  const registered = new Map();
 
   class Element {
     constructor(tag) {
@@ -63,10 +64,27 @@ function harness() {
     setDirtyCanvas() {}
   }
 
+  // 开关节点是纯前端的 LiteGraph 节点，这里给一个最小基类，足够验证状态与绘制。
+  class FakeLGraphNode {
+    constructor(title) {
+      this.title = title;
+      this.properties = {};
+      this.size = [140, 80];
+      this.pos = [0, 0];
+      this.mode = 0;
+      this.graph = null;
+    }
+    setDirtyCanvas() {}
+  }
+
   const context = {
     app: {
-      registerExtension(value) { extension = value; },
+      registerExtension(value) { extensions.push(value); },
       graph: { change() {}, setDirtyCanvas() {} },
+    },
+    LiteGraph: {
+      LGraphNode: FakeLGraphNode,
+      registerNodeType(type, ctor) { registered.set(type, ctor); },
     },
     api: {
       apiURL: (path) => '/api' + path,
@@ -94,6 +112,9 @@ function harness() {
   };
 
   vm.runInNewContext(code, context);
+  // ComfyUI 启动时会对每个 extension 调一次 registerCustomNodes，测试里手动补上。
+  extensions.forEach((ext) => ext.registerCustomNodes?.());
+  const extension = extensions.find((ext) => ext.beforeRegisterNodeDef);
 
   async function createNode(nodeName, widgets, nodeData = {}) {
     await extension.beforeRegisterNodeDef(Node, { name: nodeName, ...nodeData });
@@ -103,7 +124,7 @@ function harness() {
     return node;
   }
 
-  return { createNode, images, dialogs, context };
+  return { createNode, images, dialogs, context, extensions, registered };
 }
 
 const drawText = (node) => {
@@ -300,4 +321,65 @@ test('recipe node draws its four panels on the canvas', async () => {
   for (const rect of ctx.images) {
     assert.ok(rect.w > 0 && rect.h > 0);
   }
+});
+
+// ── 示例开关：一个按钮管一组，点哪组只跑哪组 ──
+
+const fakeGraph = () => ({
+  _nodes: [
+    { id: 1, pos: [0, 0], size: [300, 300], mode: 0 },   // ① 组
+    { id: 2, pos: [0, 400], size: [300, 300], mode: 2 }, // ② 组，json 里预设静音
+    { id: 3, pos: [400, 0], size: [300, 300], mode: 0 }, // ③ 两条链共用
+  ],
+  _groups: [
+    { title: '① 单独节点', bounding: [0, 0, 400, 350] },
+    { title: '② 四合一配方', bounding: [0, 350, 400, 400] },
+    { title: '③ 模型与采样（两条链共用）', bounding: [390, 0, 400, 350] },
+  ],
+  setDirtyCanvas() {},
+  change() {},
+});
+
+const switchNode = (graph) => {
+  const { registered } = harness();
+  assert.ok(registered.has('ref_lookbook/WorkflowSwitch'), '开关节点要注册到 LiteGraph');
+  const Switch = registered.get('ref_lookbook/WorkflowSwitch');
+  const node = new Switch();
+  node.graph = graph ?? fakeGraph();
+  return node;
+};
+
+test('workflow switch mutes the group it is not running', () => {
+  const node = switchNode();
+  node.apply();
+  assert.deepEqual(node.graph._nodes.map((n) => n.mode), [0, 2, 0], '默认只跑 ①，② 整组静音');
+
+  node.onMouseDown({}, [20, node.buttons()[1].y + 6]);
+  assert.deepEqual(Array.from(node.properties.on), [false, true], '点 ② 之后只开 ②');
+  assert.deepEqual(node.graph._nodes.map((n) => n.mode), [2, 0, 0], '① 静音，共用模型组不受影响');
+});
+
+test('workflow switch never turns both groups off', () => {
+  const node = switchNode();
+  node.apply();
+  node.onMouseDown({}, [20, node.buttons()[0].y + 6]); // 点当前已在跑的那组
+  assert.deepEqual(Array.from(node.properties.on), [true, false], '再点当前那组不做反应');
+  assert.deepEqual(node.graph._nodes.map((n) => n.mode), [0, 2, 0], '至少留一组在跑，不会两组全关');
+});
+
+test('workflow switch draws both buttons with their state', () => {
+  const ctx = drawText(switchNode());
+  assert.ok(ctx.texts.includes('① 单独节点取图') && ctx.texts.includes('② 四合一配方'),
+    '两个按钮的组名都要画出来');
+  assert.ok(ctx.texts.includes('运行中') && ctx.texts.includes('已静音'), '按钮上要写清开还是关');
+});
+
+test('workflow switch survives a corrupted saved state and missing groups', () => {
+  const node = switchNode();
+  node.properties = { on: 'corrupted' }; // 手改过 json 或旧版本存盘
+  assert.doesNotThrow(() => node.apply());
+  assert.deepEqual(Array.from(node.properties.on), [true, false], '状态读不出来就退回默认，不能变成 undefined');
+
+  const empty = switchNode({ _nodes: [], _groups: [], setDirtyCanvas() {}, change() {} });
+  assert.doesNotThrow(() => empty.apply(), '组被删掉时不能抛错，否则整张画布加载失败');
 });

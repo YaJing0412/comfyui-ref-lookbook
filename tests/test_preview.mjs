@@ -39,6 +39,8 @@ function harness() {
   const dialogs = [];
   const extensions = [];
   const registered = new Map();
+  // 弹窗靠 window 的 message 事件收结果，测试里要手动派一条才能验证「选中到底收没收下」。
+  const listeners = {};
 
   class Element {
     constructor(tag) {
@@ -99,10 +101,16 @@ function harness() {
       },
       body: { append() {} },
     },
-    window: { removeEventListener() {}, addEventListener() {} },
+    window: {
+      removeEventListener() {},
+      addEventListener(type, fn) { (listeners[type] ||= []).push(fn); },
+    },
     location: { origin: ORIGIN },
     globalThis: {},
     console,
+    // 弹窗里的提示条用 timer 自动淡出；测试只需要它可调用，不需要真的计时。
+    setTimeout: () => 0,
+    clearTimeout: () => {},
   };
   context.globalThis = context;
   context.Image = function Image() {
@@ -124,7 +132,7 @@ function harness() {
     return node;
   }
 
-  return { createNode, images, dialogs, context, extensions, registered };
+  return { createNode, images, dialogs, context, extensions, registered, listeners };
 }
 
 const drawText = (node) => {
@@ -201,7 +209,8 @@ test('Load Image gets a gallery import button that opens the picker', async () =
   assert.ok(button, 'Load Image 应多出一个导入按钮');
   button.callback();
   assert.equal(dialogs.length, 1, '点按钮应弹出图库');
-  const frame = dialogs[0].children.at(-1);
+  // 弹窗里除了 header / toast 还有 iframe，按标签找，别用位置。
+  const frame = dialogs[0].children.find((child) => child.tag === 'iframe');
   assert.match(frame.src, /\/ref_lookbook\/gallery\?lib=costume/);
 });
 
@@ -262,6 +271,83 @@ test('hair node preview follows its source switch', async () => {
     '换了来源要回落到该来源的第一件，否则预览一直 404');
   assert.equal(images[0].src, '/api/ref_lookbook/asset/anime/thumbs/ANE-H001',
     '二次元来源读的是 anime 库');
+});
+
+// —— 跨库选择：服装 / 姿势节点的弹窗顶部能切到澪图库，选完必须真的收下 ——
+const openPickerOf = (node) => node.widgets.find((widget) => widget.type === 'button').callback();
+
+function selectFromDialog(dialogs, listeners, data) {
+  const dialog = dialogs.at(-1);
+  const frame = dialog.children.find((child) => child.tag === 'iframe');
+  const receive = listeners.message.at(-1);
+  receive({ origin: ORIGIN, source: frame.contentWindow, data: { type: 'ref-gallery-select', ...data } });
+  return dialog;
+}
+
+test('costume node accepts a mio costume and reads the mio library', async () => {
+  const { createNode, images, dialogs, listeners } = harness();
+  const node = await createNode('CostumeGallery', [{ name: 'costume_id', value: 'SPR-0001' }], LIB_DATA);
+  openPickerOf(node);
+  const frame = dialogs.at(-1).children.find((child) => child.tag === 'iframe');
+  assert.match(frame.src, /\/ref_lookbook\/gallery\?lib=costume/, '默认还是打开写实服装库');
+
+  selectFromDialog(dialogs, listeners, { library: 'mio', id: 'C-01-01' });
+  assert.equal(node.widgets[0].value, 'C-01-01', '在澪图库里选的服装要真的写进节点');
+  assert.equal(images[0].src, '/api/ref_lookbook/asset/mio/thumbs/C-01-01',
+    '预览要跟着编号切到澪库，否则会去写实库里找一个不存在的编号');
+});
+
+test('a costume node reopens straight into the mio costume series', async () => {
+  const { createNode, dialogs } = harness();
+  const node = await createNode('CostumeGallery', [{ name: 'costume_id', value: 'C-01-01' }], LIB_DATA);
+  openPickerOf(node);
+  const frame = dialogs.at(-1).children.find((child) => child.tag === 'iframe');
+  assert.match(frame.src, /\/ref_lookbook\/mio#s-cloth$/, '编号已经是澪库的就直接落到服装系列');
+});
+
+test('pose node accepts a mio pose', async () => {
+  const { createNode, images, dialogs, listeners } = harness();
+  const node = await createNode(
+    'PoseGallery',
+    [{ name: 'pose_id', value: 'POS-SEXY-P001' }, { name: 'angle', value: '正面' }],
+    { name: 'PoseGallery' },
+  );
+  openPickerOf(node);
+  selectFromDialog(dialogs, listeners, { library: 'mio', id: 'P-01-01' });
+  assert.equal(node.widgets[0].value, 'P-01-01');
+  assert.equal(images[0].src, '/api/ref_lookbook/asset/mio/thumbs/P-01-01?angle=%E6%AD%A3%E9%9D%A2',
+    '澪设计的姿势只有一张，多带一个机位参数也照旧能取到');
+});
+
+test('picking the wrong kind in the dialog is explained instead of silently dropped', async () => {
+  const { createNode, dialogs, listeners } = harness();
+  const node = await createNode('CostumeGallery', [{ name: 'costume_id', value: 'SPR-0001' }], LIB_DATA);
+  openPickerOf(node);
+  const dialog = selectFromDialog(dialogs, listeners, { library: 'mio', id: 'H-01-01' });
+  assert.equal(node.widgets[0].value, 'SPR-0001', '发型编号不能写进服装节点');
+  const toast = dialog.children.filter((child) => child.tag === 'div').at(-1);
+  assert.match(String(toast.textContent), /发型/, '要告诉用户这件是发型，别让弹窗一关什么都没发生');
+});
+
+test('recipe costume and pose slots read the mio library for C- / P- ids', async () => {
+  const { createNode, images } = harness();
+  const node = await createNode('CharacterRecipe', recipeWidgets(), { name: 'CharacterRecipe' });
+  const costume = node.widgets.find((widget) => widget.name === 'costume_id');
+  costume.value = 'C-01-01';
+  costume.callback();
+  assert.equal(images[2].src, '/api/ref_lookbook/asset/mio/thumbs/C-01-01');
+
+  const pose = node.widgets.find((widget) => widget.name === 'pose_id');
+  pose.value = 'P-01-01';
+  pose.callback();
+  assert.equal(images[3].src, '/api/ref_lookbook/asset/mio/thumbs/P-01-01?angle=%E6%AD%A3%E9%9D%A2');
+
+  // 打开深度开关也不能把澪库姿势换成 DEP- 编号：那边根本没有深度版。
+  const depth = node.widgets.find((widget) => widget.name === 'use_depth');
+  depth.value = true;
+  depth.callback();
+  assert.equal(images[3].src, '/api/ref_lookbook/asset/mio/thumbs/P-01-01?angle=%E6%AD%A3%E9%9D%A2',
+    '澪库姿势要无视深度开关');
 });
 
 const recipeWidgets = () => ([

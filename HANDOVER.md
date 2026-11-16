@@ -41,6 +41,7 @@ tests/                   131 Python + 17 前端
 8. **新增后端节点必须重启 ComfyUI**（刷新页面无效），再重新拖工作流。
 9. **数量硬约束**：`example_workflows/` 只允许一份 json；六库 + 澪库编号互不相交（测试会查）。
 10. **`cfg = 1` 时负面提示词完全不起作用**，约束只能写在正面提示词里。示例工作流的 KSampler 就是 `cfg=1`。
+11. **跨库选择靠编号前缀认库，前后端必须同一套规则。** 前端 `libraryOf()`（`MIO_ID` + `mioKinds`）与后端 `_library_for_id()` + `MIO_KINDS` 是一对：改一侧必须同步另一侧，否则会出现「预览对了、出图报未知 ID」这种割裂。**选了不属于该节点的类别时绝不能静默 return**——v1.9.0 之前服装节点选澪库服装就是被静默丢掉，用户只看到「没反应」。要么收下，要么 `return false` + 弹提示。
 
 ## 三、发型为什么容易「不生效」（v1.8.0 的核心教训）
 
@@ -80,6 +81,23 @@ node --test tests/test_preview.mjs      # 或项目既有的跑法
 ## 六、变更台账
 
 > 新记录加在最上面。格式：**改了什么 / 涉及文件 / 原因 / 影响范围**。
+
+### 2026-11-16 · v1.9.0 · 服装 / 姿势节点接上澪图库（修「选了没反应」）
+
+- **改了什么**
+  1. 后端新增 `MIO_ID` 正则与 `_library_for_id()`：编号是 `H-/C-/P-\d\d-\d\d` 时读 `mio` 库。`_GalleryNode` 加类属性 `MIO_KINDS`（默认空），`CostumeGallery` 设 `('C',)`、`PoseGallery` 设 `('P',)`；`_library_for` 统一走它，`_load` / `_relative` / `VALIDATE_INPUTS` / `IS_CHANGED` 自动一致。
+  2. `CharacterRecipe` 新增 `_costume_target()` / `_pose_target()`，`build_recipe` / `VALIDATE_INPUTS` / `IS_CHANGED` 三处共用：服装 `C-` 编号优先于 `costume_library` 下拉；姿势 `P-` 编号直接读澪库，且**不**做 `POS-`→`DEP-` 换算（澪库没有深度版）。
+  3. 前端加 `libraryOf()` / `canTake()` / `refuseText()`：单库节点的 `currentLibrary()` 按编号推断库（发型节点仍由来源下拉决定），预览 URL 跟着切库；`onSelect` 改为「收下 / 明确拒绝」两条路，拒绝时 `return false`，弹窗不关并弹红条说明原因。
+  4. 弹窗加 toast 提示层（`notice()`）：原本选错就静默关闭，用户完全不知道发生了什么。
+  5. 配置层：`CostumeGallery` / `PoseGallery` / 配方服装槽与姿势槽加 `mioKinds`，前两者加 `openFor.mio`（`#s-cloth` / `#s-pose`），编号已是澪库时再点浏览直接落到对应系列。
+  6. 文档与版本：README 用法第 2 / 8 条、测试计数与版本行，更新日志 v1.9.0，`pyproject.toml` → 1.9.0。
+- **涉及文件**：`__init__.py`、`web/ref_gallery.js`、`tests/test_nodes.py`、`tests/test_preview.mjs`、`README.md`、`更新日志.md`、`pyproject.toml`、`HANDOVER.md`（本文件）。
+- **原因**：用户反馈「服装和姿势节点我选择澪图库里面的没有反应」。真实前端复现确认：弹窗顶部切到澪图库、选中 `C-01-01` → 弹窗关闭但 `costume_id` 仍是 `SPR-0001`。根因是 `onSelect` 里 `data.library !== config.library → return` 静默丢弃，而后端 `item('costume', 'C-01-01')` 本来就会报「未知服装 ID」——前后端两边都没有跨库的概念。
+- **影响范围**：
+  - **纯前端行为变化 + 后端节点内部逻辑，老工作流不用重拖**；`MIO_KINDS` / `_library_for_id` 只影响「编号属于澪库」这一种情况，原有编号走原路，出图结果不变。
+  - **升级后只刷新页面（F5）就能用浏览与回填**；但要让后端真正按澪库出图，**仍需重启 ComfyUI**（`__init__.py` 改了）。这一点容易搞混：前端先好用、后端还在报错。
+  - 深度姿势节点与服装动画节点**故意不接**澪库（前者会把普通姿势当深度图，后者画风不同）；以后要给它们开口，改 `MIO_KINDS` 即可，但要想清楚语义。
+  - 配方节点里 `use_depth` 对 `P-` 编号失效（澪库无深度版），这是预期行为，已在提示与文档里写明。
 
 ### 2026-11-16 · v1.8.0 · 发型替换修复 + 提示词改中文
 

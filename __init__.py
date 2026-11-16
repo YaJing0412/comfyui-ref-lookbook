@@ -75,12 +75,33 @@ def _describe_en(row):
     return row.get('英文关键词') or ''
 
 
+# 澪设计档案的编号形态：H-01-01 发型 / C-01-01 服装 / P-01-01 姿势。
+# 写实库的编号完全不同（SPR-0001、POS-SEXY-P001、FACE-0001、DEP-SEXY-P001、ANE-H001），
+# 所以靠编号前缀就能判断该去哪本索引里找，不会跟 POS- 撞上。
+MIO_ID = re.compile(r'^([HCP])-\d{2}-\d{2}$')
+
+
+def _library_for_id(default, item_id, kinds):
+    """编号属于澪设计档案（且该节点接受这一类）就去澪库，否则留在默认库。
+
+    服装与姿势节点原本只能读写实库，而弹窗顶部可以切到「澪图库」——选完被静默丢掉，
+    用户看到的就是「选了没反应」。按编号认库，选什么就出什么。
+    """
+    match = MIO_ID.match(str(item_id or ''))
+    if match and match.group(1) in kinds:
+        return 'mio'
+    return default
+
+
 class _GalleryNode:
     """六个图库共用同一套加载逻辑，差异只在索引、控件名、返回值命名与形态维度。"""
 
     LIBRARY = 'costume'
     ID_WIDGET = 'costume_id'
     DEFAULT_ID = 'SPR-0001'
+    # 除本库编号外，还接受澪设计档案里的哪几类（字母对应 H 发型 / C 服装 / P 姿势）。
+    # 由单库节点自己声明：服装节点不该取到发型图，深度节点更不能把普通姿势当深度图。
+    MIO_KINDS = ()
     ID_TOOLTIP = '点击浏览图库，按中文、编号或关键词搜索，再使用此素材。'
     ANGLE = False                       # 是否有「形态」这一维：姿势是机位，二次元是彩图 / 线稿
     VARIANT_WIDGET = 'angle'            # 该维度的控件名，决定前端怎么读
@@ -113,8 +134,8 @@ class _GalleryNode:
 
     @classmethod
     def _library_for(cls, values):
-        """实际取图的库：单库节点直接用类属性，跨来源节点（发型）按来源控件切。"""
-        return cls.LIBRARY
+        """实际取图的库：单库节点按编号认澪库，跨来源节点（发型）另有自己的解析。"""
+        return _library_for_id(cls.LIBRARY, values.get(cls.ID_WIDGET), cls.MIO_KINDS)
 
     @classmethod
     def _relative(cls, values):
@@ -157,8 +178,9 @@ class CostumeGallery(_GalleryNode):
     LIBRARY = 'costume'
     ID_WIDGET = 'costume_id'
     DEFAULT_ID = 'SPR-0001'
-    ID_TOOLTIP = '点击浏览服装图库，按中文、英文或编号搜索，再使用此服装。'
-    DESCRIPTION = '中文服装图库：1,407 套，分类筛选与中英文搜索，输出完整 PNG 原图。'
+    MIO_KINDS = ('C',)      # 也接澪设计档案里的服装（C-01-01 这种编号）
+    ID_TOOLTIP = '点击浏览服装图库，按中文、英文或编号搜索，再使用此服装。弹窗顶部可切到澪图库选作者款。'
+    DESCRIPTION = '中文服装图库：1,407 套，分类筛选与中英文搜索；弹窗顶部还能切到澪设计档案选 117 件作者款。'
 
     def load_costume(self, **values):
         return self._load(**values)
@@ -186,10 +208,11 @@ class PoseGallery(_GalleryNode):
     DEFAULT_ID = 'POS-SEXY-P001'
     FUNCTION = 'load_pose'
     ANGLE = True
-    VARIANT_TOOLTIP = '同一姿势的五个机位，切换后输出对应原图。'
+    MIO_KINDS = ('P',)      # 也接澪设计档案里的姿势（P-01-01 这种编号；那边每个动作只有一张，跟机位无关）
+    VARIANT_TOOLTIP = '同一姿势的五个机位，切换后输出对应原图。澪设计的姿势只有一张，机位对它不起作用。'
     ID_TOOLTIP = '点击浏览姿势图库，按系列、动作或编号搜索，每个姿势含五个机位。'
     RETURN_NAMES = ('image', 'width', 'height', 'pose_id', 'description', 'description_ja')
-    DESCRIPTION = '中文姿势图库：288 个姿势 × 5 个机位（1,439 张），输出完整 PNG 原图。'
+    DESCRIPTION = '中文姿势图库：288 个姿势 × 5 个机位（1,439 张）；弹窗顶部还能切到澪设计档案选 216 个作者姿势。'
 
     def load_pose(self, **values):
         return self._load(**values)
@@ -640,20 +663,39 @@ class CharacterRecipe(_GalleryNode):
         }
 
     def _pose_library(self, values):
-        return 'depth' if values.get('use_depth') else 'pose'
+        return self._pose_target(values)[0]
+
+    @staticmethod
+    def _costume_target(values):
+        """服装实际读哪本索引：澪库编号（C-01-01）优先，其次看 costume_library 下拉。"""
+        chosen = str(values.get('costume_library') or 'costume')
+        if chosen not in CharacterRecipe.COSTUME_LIBRARIES:
+            chosen = 'costume'
+        return _library_for_id(chosen, values.get('costume_id') or 'SPR-0001', ('C',)), \
+            str(values.get('costume_id') or 'SPR-0001')
+
+    @staticmethod
+    def _pose_target(values):
+        """姿势实际读哪本索引与哪个编号。
+
+        澪库的姿势只有一张图、没有深度版，所以编号是 P-01-01 时直接读澪库，
+        既不换 POS- → DEP- 前缀，也不理 use_depth（换了前缀会变成查不到）。
+        """
+        pose_id = str(values.get('pose_id') or 'POS-SEXY-P001')
+        library = _library_for_id('depth' if values.get('use_depth') else 'pose', pose_id, ('P',))
+        if library == 'mio':
+            return 'mio', pose_id
+        return library, (pose_id.replace('POS-', 'DEP-', 1) if values.get('use_depth') else pose_id)
 
     @classmethod
     def IS_CHANGED(cls, **values):
         """四张图任一换图 / 换版本 / 改尺寸都要重算，缓存键必须覆盖整组参数。"""
-        costume_lib = values.get('costume_library') or 'costume'
-        pose_lib = 'depth' if values.get('use_depth') else 'pose'
-        pose_id = str(values.get('pose_id') or 'POS-SEXY-P001')
-        if pose_lib == 'depth':
-            pose_id = pose_id.replace('POS-', 'DEP-', 1)
+        costume_lib, costume_key = cls._costume_target(values)
+        pose_lib, pose_key = cls._pose_target(values)
         parts = []
         targets = [('face', str(values.get('face_id') or cls.DEFAULT_ID), None),
-                   (costume_lib, str(values.get('costume_id') or 'SPR-0001'), None),
-                   (pose_lib, pose_id, values.get('pose_angle'))]
+                   (costume_lib, costume_key, None),
+                   (pose_lib, pose_key, values.get('pose_angle'))]
         try:
             hair_library, hair_id, hair_row = HairGallery._resolve(values)
         except ValueError:
@@ -674,16 +716,13 @@ class CharacterRecipe(_GalleryNode):
         """四个 ID 与服装库都要先校验；只查索引，不触发下载。"""
         try:
             item('face', str(values.get('face_id') or cls.DEFAULT_ID))
-            library = values.get('costume_library') or 'costume'
-            if library not in cls.COSTUME_LIBRARIES:
-                return f'未知服装库：{library}'
-            item(library, str(values.get('costume_id') or 'SPR-0001'))
-            pose_id = str(values.get('pose_id') or 'POS-SEXY-P001')
-            # 深度模式与出图时同一套换算：POS- → DEP-，否则校验会拿姿势编号去深度库查而判整条链失败。
-            if values.get('use_depth'):
-                item('depth', pose_id.replace('POS-', 'DEP-', 1))
-            else:
-                item('pose', pose_id)
+            chosen = values.get('costume_library') or 'costume'
+            if chosen not in cls.COSTUME_LIBRARIES:
+                return f'未知服装库：{chosen}'
+            costume_lib, costume_key = cls._costume_target(values)
+            item(costume_lib, costume_key)
+            pose_lib, pose_key = cls._pose_target(values)
+            item(pose_lib, pose_key)
             # 发型与 HairGallery 同一套解析：编号跟来源不匹配时会在那里回落到默认件，不会把整条链判失败。
             HairGallery._resolve(values)
         except ValueError as exc:
@@ -696,13 +735,15 @@ class CharacterRecipe(_GalleryNode):
                      pose_angle=None, costume_library='costume', use_depth=False,
                      hair_id='H-01-01', hair_source='澪设计'):
         # 深度库编号与姿势库一一对应，只是前缀不同（POS- → DEP-），直接换前缀沿用同一套机位。
-        pose_library = 'depth' if use_depth else 'pose'
-        pose_key = pose_id.replace('POS-', 'DEP-', 1) if use_depth else pose_id
+        # 澪设计的姿势没有深度版，编号是 P-01-01 时整条链改读澪库。
+        pose_library, pose_key = self._pose_target(values={
+            'pose_id': pose_id, 'use_depth': use_depth})
 
         face_row = item('face', str(face_id))
-        costume_lib = costume_library if costume_library in self.COSTUME_LIBRARIES else 'costume'
-        costume_row = item(costume_lib, str(costume_id))
-        pose_row = item(pose_library, str(pose_key))
+        costume_lib, costume_key = self._costume_target(
+            values={'costume_library': costume_library, 'costume_id': costume_id})
+        costume_row = item(costume_lib, costume_key)
+        pose_row = item(pose_library, pose_key)
         hair_library, hair_key, hair_row = HairGallery._resolve(
             {'hair_id': hair_id, 'hair_source': hair_source})
 
@@ -725,7 +766,8 @@ class CharacterRecipe(_GalleryNode):
 
         style_zh, style_en = STYLE_PRESETS.get(style_preset, STYLE_PRESETS['高清日系动漫'])
         extra = (extra_prompt or '').strip()
-        costume_label = '' if costume_lib == 'costume' else f'·{LIBRARIES[costume_lib]["label"]}'
+        # 只有「服装动画」需要标注画风；澪设计的服装也是写实向，不必再加后缀。
+        costume_label = '' if costume_lib in ('costume', 'mio') else f'·{LIBRARIES[costume_lib]["label"]}'
 
         zh = [f'参考图合成一张完整的角色立绘：{style_zh}。四张图分工固定——图1 姿势与构图、图2 长相、'
               f'图3 服装、图4 头发，冲突时以分工为准。',

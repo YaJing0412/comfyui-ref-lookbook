@@ -2,10 +2,49 @@ import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
 
 // 自有图库节点：六个单库 + 发型（两个来源）+ 澪设计档案 + 角色配方（四合一）
+
+// 澪设计档案的编号形态：H-01-01 发型 / C-01-01 服装 / P-01-01 姿势。
+// 写实库的编号完全不同（SPR-0001、POS-SEXY-P001、FACE-0001…），所以看前缀就知道该读哪本库。
+const MIO_ID = /^([HCP])-\d{2}-\d{2}$/;
+
+// 编号属于澪库、并且该节点声明接受这一类时，实际读澪库；否则留在默认库。
+// 起因：服装 / 姿势节点的弹窗顶部能切到「澪图库」，选完却被 onSelect 静默丢掉，
+// 用户看到的就是「选了没反应」——所以库必须跟着编号走，前后端用同一套判断。
+function libraryOf(config, itemId, base) {
+  const match = MIO_ID.exec(String(itemId ?? ""));
+  return match && (config.mioKinds || []).includes(match[1]) ? "mio" : base;
+}
+
+const KIND_LABELS = { H: "发型", C: "服装", P: "姿势" };
+
+// 这个节点收不收这件素材。弹窗顶部可以在「日系图库 / 澪图库」之间来回切，
+// 所以选到的库跟节点原本的库不一样很正常——要么按类别收下，要么明确拒绝，不能默默丢掉。
+function canTake(config, data) {
+  if (!data.library) return true;            // 老页面不带库名：照旧收下
+  if (data.library === "anime") return Boolean(config.sourceMap) || config.library === "anime";
+  // 深度姿势只有配方节点能收：它那边有多一层「用深度图」开关。
+  if (data.library === "depth") return Boolean(config.depthIdWidget) || config.library === "depth";
+  if (data.library !== "mio") return data.library === config.library;
+  // 澪库：按编号类别判断。发型节点只收 H，服装 / 姿势节点各自收 C / P，澪设计档案节点三类都收。
+  const kinds = config.mioKinds || (config.library === "mio" ? ["H", "C", "P"] : []);
+  const kind = MIO_ID.exec(String(data.id))?.[1];
+  return Boolean(kind) && kinds.includes(kind);
+}
+
+function refuseText(config, data) {
+  const kind = KIND_LABELS[MIO_ID.exec(String(data.id))?.[1]];
+  if (kind) return `这件是「${kind}」，当前节点只收「${config.label}」。请换用对应的${kind}节点，或用「澪设计档案」节点（三类都能选）。`;
+  return `这件素材不属于当前节点（只收「${config.label}」）。请换用对应的节点，或用「澪设计档案」节点。`;
+}
+
 const LIBRARIES = {
   CostumeGallery: {
     library: "costume",
     idWidget: "costume_id",
+    // 也接澪设计档案里的服装：弹窗顶部切到澪图库选到的 C-01-01 要能真的用上。
+    mioKinds: ["C"],
+    // 当前编号已经是澪库的（C-01-01）就直接开澪库页的服装系列，省一次切库。
+    openFor: { mio: { page: "mio", hash: "#s-cloth" } },
     label: "服装",
     button: "浏览服装图库 · 搜索 / 分类 / 关键词",
   },
@@ -19,6 +58,9 @@ const LIBRARIES = {
     library: "pose",
     idWidget: "pose_id",
     angleWidget: "angle",
+    // 也接澪设计档案里的姿势（P-01-01 这种编号；那边每个动作只有一张，跟机位无关）。
+    mioKinds: ["P"],
+    openFor: { mio: { page: "mio", hash: "#s-pose" } },
     label: "姿势",
     button: "浏览姿势图库 · 288 个动作 / 五个机位",
   },
@@ -50,6 +92,8 @@ const LIBRARIES = {
     sourceWidget: "hair_source",
     sourceMap: { "澪设计": "mio", "二次元": "anime" },
     idDefaults: { mio: "H-01-01", anime: "ANE-H001" },
+    // 澪图库里还有服装和姿势，发型节点只认 H 开头的编号。
+    mioKinds: ["H"],
     openFor: {
       mio: { page: "mio", hash: "#s-hair" },
       anime: { query: `cat=${encodeURIComponent("发型与眼睛")}` },
@@ -63,16 +107,16 @@ const LIBRARIES = {
     label: "角色配方",
     slots: [
       // 发型槽自带来源切换：澪设计（mio）或二次元（anime），选完自动把开关拨到对应那边。
-      { library: "mio", sourceWidget: "hair_source",
+      { library: "mio", sourceWidget: "hair_source", mioKinds: ["H"],
         sourceMap: { "澪设计": "mio", "二次元": "anime" },
         idDefaults: { mio: "H-01-01", anime: "ANE-H001" },
         openFor: { mio: { page: "mio", hash: "#s-hair" },
                    anime: { query: `cat=${encodeURIComponent("发型与眼睛")}` } },
         idWidget: "hair_id", label: "发型", button: "选发型（澪设计 / 二次元）" },
       { library: "face", idWidget: "face_id", label: "脸部", button: "选脸部" },
-      { library: "costume", idWidget: "costume_id", label: "服装", button: "选服装（写实 / 动画）" },
+      { library: "costume", idWidget: "costume_id", label: "服装", button: "选服装（写实 / 动画）", mioKinds: ["C"] },
       { library: "pose", idWidget: "pose_id", variantWidget: "pose_angle", label: "姿势",
-        button: "选姿势（跟随深度开关）", depthIdWidget: "use_depth" },
+        button: "选姿势（跟随深度开关）", depthIdWidget: "use_depth", mioKinds: ["P"] },
     ],
   },
   // 霧島澪设计档案：布局是「系列 → 卷 → 9 件」且每件带作者原版提示词，
@@ -97,7 +141,7 @@ function openGalleryDialog({ library, title, onSelect, page, query, hash }) {
 
   const dialog = document.createElement("dialog");
   dialog.style.cssText =
-    "width:96vw;height:94vh;max-width:1800px;max-height:96vh;padding:0;border:1px solid #777;border-radius:12px;background:#f7f5ef;";
+    "position:relative;width:96vw;height:94vh;max-width:1800px;max-height:96vh;padding:0;border:1px solid #777;border-radius:12px;background:#f7f5ef;";
 
   const header = document.createElement("div");
   header.style.cssText =
@@ -120,7 +164,22 @@ function openGalleryDialog({ library, title, onSelect, page, query, hash }) {
   frame.src = hash ? `${base}${hash}` : base;
   frame.title = "参考图库";
   frame.style.cssText = "width:100%;height:calc(100% - 48px);border:0;";
-  dialog.append(header, frame);
+
+  // 选错类别时给一句人话，而不是把弹窗一关、画布上什么都没变（原来就是这样丢掉选择的）。
+  const toast = document.createElement("div");
+  toast.style.cssText =
+    "position:absolute;top:60px;left:50%;transform:translateX(-50%);z-index:9;max-width:80%;padding:9px 18px;" +
+    "border-radius:8px;background:#8b2e2e;color:#fff;font:13px/1.5 sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.18);" +
+    "opacity:0;transition:opacity .18s;pointer-events:none;";
+  let toastTimer = 0;
+  const notice = (text) => {
+    toast.textContent = text;
+    toast.style.opacity = "1";
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { toast.style.opacity = "0"; }, 4500);
+  };
+
+  dialog.append(header, frame, toast);
 
   const receive = (event) => {
     if (event.origin !== location.origin || event.source !== frame?.contentWindow) return;
@@ -131,12 +190,14 @@ function openGalleryDialog({ library, title, onSelect, page, query, hash }) {
       );
     }
     if (event.data?.type !== "ref-gallery-select" || typeof event.data.id !== "string") return;
-    onSelect(event.data);
+    // onSelect 返回 false 表示这一件不属于当前节点：留着弹窗并提示，别关掉装作成功。
+    if (onSelect(event.data) === false) return;
     close();
   };
 
   function close() {
     window.removeEventListener("message", receive);
+    clearTimeout(toastTimer);
     activeDialog = null;
     dialog.remove();
   }
@@ -151,7 +212,7 @@ function openGalleryDialog({ library, title, onSelect, page, query, hash }) {
   });
   document.body.append(dialog);
   dialog.showModal();
-  activeDialog = { close, setStatus: (text) => { label.textContent = text; } };
+  activeDialog = { close, notice, setStatus: (text) => { label.textContent = text; } };
   return activeDialog;
 }
 
@@ -234,8 +295,12 @@ app.registerExtension({
       const sourceWidget = config.sourceWidget
         ? node.widgets.find((w) => w.name === config.sourceWidget) ?? null
         : null;
-      const currentLibrary = () =>
-        (sourceWidget && config.sourceMap?.[String(sourceWidget.value)]) || config.library;
+      // 预览与取图都按「实际库」走：没有来源开关的节点（服装 / 姿势）跟着编号走，
+      // 编号是 C-01-01 / P-01-01 时读澪库；发型节点的库仍由来源下拉决定。
+      const currentLibrary = () => {
+        const base = (sourceWidget && config.sourceMap?.[String(sourceWidget.value)]) || config.library;
+        return sourceWidget ? base : libraryOf(config, value?.value, base);
+      };
 
       // 预览直接画在节点画布上，不用 DOM 控件：DOM 控件的定位由前端布局决定，
       // 一旦图片原始尺寸大于分配区域就会溢出节点边框。
@@ -324,13 +389,16 @@ app.registerExtension({
           hash: target.hash,
           title: `参考图库 · 选择${config.label}后点击「${useLabel}」`,
           onSelect: (data) => {
-            // 带来源的节点（发型）：用户在弹窗里切到另一个来源选了一件，就把开关拨过去再收下；
-            // 没有来源切换的节点（澪设计档案）照旧只收本库的编号。
+            // 带来源的节点（发型）：用户在弹窗里切到另一个来源选了一件，就把开关拨过去再收下。
+            // 但来源对不代表类别对——在澪图库里点到一件服装，发型节点收不了，得说清楚。
             if (config.sourceMap) {
               const name = Object.keys(config.sourceMap).find((key) => config.sourceMap[key] === data.library);
               if (name && sourceWidget) sourceWidget.value = name;
-              else if (data.library && data.library !== currentLibrary()) return;
-            } else if (data.library && data.library !== config.library) return;
+            }
+            if (!canTake(config, data)) {
+              activeDialog?.notice?.(refuseText(config, data));
+              return false;
+            }
             value.value = data.id;
             if (angleWidget && typeof data.angle === "string" && data.angle) angleWidget.value = data.angle;
             value.callback?.(value.value);
@@ -469,12 +537,14 @@ function registerRecipeNode(nodeType, config) {
     // 深度开关打开时，姿势槽位改读深度库，编号前缀 POS- → DEP-（两库 288 条一一对应）。
     // 发型槽没有深度开关，走 sourceControl 那条分支。
     const resolve = (slot) => {
-      const depth = Boolean(slot.depthWidget?.value) && slot.library === "pose";
       const raw = String(slot.idWidget?.value ?? "");
       const bySource = slot.sourceControl ? slot.sourceMap?.[String(slot.sourceControl.value)] : "";
+      // 澪库编号（C-01-01 / P-01-01）优先：那边没有深度版，也不能走 POS- → DEP- 的换算。
+      const mio = ["costume", "pose"].includes(slot.library) && libraryOf(slot, raw, "") === "mio";
+      const depth = !mio && Boolean(slot.depthWidget?.value) && slot.library === "pose";
       return {
         depth,
-        library: bySource || (depth ? "depth" : slot.library),
+        library: mio ? "mio" : (bySource || (depth ? "depth" : slot.library)),
         id: depth ? raw.replace(/^POS-/, "DEP-") : raw,
         angle: slot.variantWidget ? String(slot.variantWidget.value ?? "") : "",
       };
@@ -568,6 +638,13 @@ function registerRecipeNode(nodeType, config) {
         title: `参考图库 · 选择${slot.label}后点击「使用此${slot.label}」`,
         onSelect: (data) => {
           if (!slot.idWidget) return;
+          // 先判断这个槽收不收：澪图库里服装 / 姿势 / 发型混在一起，选错了要当场说清楚。
+          const view = { library: slot.library, mioKinds: slot.mioKinds, sourceMap: slot.sourceMap,
+                         depthIdWidget: slot.depthWidget, label: slot.label };
+          if (!canTake(view, data)) {
+            activeDialog?.notice?.(refuseText(view, data));
+            return false;
+          }
           // 带来源的槽（发型）：用户在弹窗里切到另一个来源选了一件，就把来源开关拨过去再收下。
           if (slot.sourceMap) {
             const name = Object.keys(slot.sourceMap).find((key) => slot.sourceMap[key] === data.library);

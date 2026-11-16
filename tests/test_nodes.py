@@ -502,5 +502,59 @@ class MioGalleryTests(unittest.TestCase):
         self.assertFalse({row['id'] for row in nodes.records('mio')} & other)
 
 
+class CrossLibraryTests(unittest.TestCase):
+    """服装 / 姿势节点也能收澪设计档案的编号。
+
+    起因：这两个节点的弹窗顶部能切到「澪图库」，选完 `onSelect` 按库名不同直接 return，
+    弹窗照旧关掉、节点上什么都没变——用户看到的就是「选了没反应」。
+    现在按编号前缀认库，前后端用同一套规则。
+    """
+
+    def test_costume_node_reads_the_mio_library_for_c_ids(self):
+        cls = nodes.CostumeGallery
+        self.assertEqual(cls._library_for({'costume_id': 'C-01-01'}), 'mio')
+        self.assertEqual(cls._relative({'costume_id': 'C-01-01'}), 'mio/thumbs/cloth-01-01.jpg')
+        self.assertEqual(cls._library_for({'costume_id': 'SPR-0001'}), 'costume')
+        self.assertTrue(cls.VALIDATE_INPUTS(costume_id='C-01-01'))
+
+    def test_pose_node_reads_the_mio_library_for_p_ids(self):
+        cls = nodes.PoseGallery
+        self.assertEqual(cls._library_for({'pose_id': 'P-01-01'}), 'mio')
+        self.assertEqual(cls._relative({'pose_id': 'P-01-01'}), 'mio/thumbs/pose-01-01.jpg')
+        self.assertEqual(cls._library_for({'pose_id': 'POS-SEXY-P001'}), 'pose')
+
+    def test_nodes_only_take_their_own_kind(self):
+        """别的类别不能混进来：服装节点收发型图、深度节点拿普通姿势当深度图，都是错的。"""
+        cases = (
+            ('CostumeGallery', {'costume_id': 'H-01-01'}, 'costume'),
+            ('CostumeAnimeGallery', {'costume_anime_id': 'C-01-01'}, 'costume-anime'),
+            ('PoseGallery', {'pose_id': 'C-01-01'}, 'pose'),
+            ('DepthGallery', {'depth_id': 'P-01-01'}, 'depth'),
+            ('FaceGallery', {'face_id': 'C-01-01'}, 'face'),
+        )
+        for name, values, expected in cases:
+            with self.subTest(node=name, value=values):
+                cls = getattr(nodes, name)
+                self.assertEqual(cls._library_for(values), expected)
+                with self.assertRaises(ValueError):
+                    cls._relative(values)
+
+    def test_recipe_resolves_the_same_way(self):
+        cls = nodes.CharacterRecipe
+        self.assertEqual(cls._costume_target({'costume_id': 'C-01-01'}), ('mio', 'C-01-01'))
+        self.assertEqual(cls._costume_target({'costume_library': 'costume-anime',
+                                              'costume_id': 'SPR-0001'}), ('costume-anime', 'SPR-0001'))
+        self.assertEqual(cls._pose_target({'pose_id': 'P-01-01'}), ('mio', 'P-01-01'))
+        # 澪库没有深度版：开着深度开关也不能把 P-01-01 换成 DEP- 前缀。
+        self.assertEqual(cls._pose_target({'pose_id': 'P-01-01', 'use_depth': True}), ('mio', 'P-01-01'))
+        self.assertEqual(cls._pose_target({'pose_id': 'POS-SEXY-P001', 'use_depth': True}),
+                         ('depth', 'DEP-SEXY-P001'))
+
+    def test_recipe_validation_accepts_mio_ids(self):
+        self.assertTrue(nodes.CharacterRecipe.VALIDATE_INPUTS(
+            face_id='FACE-0001', costume_id='C-01-01', pose_id='P-01-01',
+            hair_id='H-01-01', hair_source='澪设计', use_depth=True))
+
+
 if __name__ == '__main__':
     unittest.main()

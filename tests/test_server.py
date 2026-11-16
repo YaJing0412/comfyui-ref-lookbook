@@ -118,6 +118,30 @@ class ServerTests(unittest.TestCase):
         for name in ('mio.mjs', 'mio.css'):
             self.assertEqual(get(f'/ref_lookbook/web/{name}')[0], 200, name)
 
+    def test_primary_menu_has_two_libraries(self):
+        """一级菜单只有日系图库 / 澪图库两项，两个页面各有一份，当前页要标 aria-current。
+
+        菜单靠 HTML 手写（不是 JS 生成），改坏了浏览器也不会报错，这条测试就是防这个。
+        """
+        cases = (('/ref_lookbook/gallery', '日系图库', '/ref_lookbook/mio'),
+                 ('/ref_lookbook/mio', '澪图库', '/ref_lookbook/gallery'))
+        for path, current, other in cases:
+            status, _, body = get(path)
+            text = body.decode('utf-8')
+            with self.subTest(path=path):
+                self.assertEqual(status, 200)
+                self.assertIn('class="lib-nav"', text)
+                block = text.split('class="lib-nav"', 1)[1].split('</nav>', 1)[0]
+                self.assertEqual(block.count('<a '), 2, block)
+                self.assertIn('日系图库', block)
+                self.assertIn('澪图库', block)
+                self.assertIn(other, block)
+                # 当前页的那一项带 aria-current="page"
+                items = [item.split('</a>', 1)[0] for item in block.split('<a ')[1:]]
+                marked = [item for item in items if 'aria-current="page"' in item]
+                self.assertEqual(len(marked), 1, items)
+                self.assertIn(current, marked[0])
+
     def test_mio_catalog_and_jpeg_asset(self):
         status, _, body = get('/ref_lookbook/catalog/mio')
         payload = json.loads(body)

@@ -73,6 +73,8 @@ async function boot() {
 }
 
 // ---------- 左栏 ----------
+// 菜单三层里这里是澪图库的下级：一级「澪图库」（顶部）→ 二级「系列」可折叠 → 三级「卷」可点。
+// 系列默认展开，点标题收起；从外部跳到某个卷时，如果它所在的系列是收起的，自动展开。
 function renderRail() {
   const host = $('volumes');
   host.replaceChildren();
@@ -82,26 +84,50 @@ function renderRail() {
   };
   const names = [...state.series.keys()].sort((a, b) => rank(a) - rank(b));
   names.forEach((name) => {
-    host.append(el('h2', `${name} · ${state.series.get(name).length} 卷`));
-    state.series.get(name).forEach((volume) => {
-      const button = el('button');
-      button.type = 'button';
-      button.dataset.slug = volume.slug;
-      button.append(
-        el('span', `Vol.${String(volume.vol).padStart(2, '0')}`, 'vol-no'),
-        el('span', volume.theme_zh || volume.label, 'vol-name'),
-        el('span', String(volume.count), 'vol-n'),
-      );
-      button.addEventListener('click', () => go({ type: 'volume', slug: volume.slug }));
-      host.append(button);
+    const list = state.series.get(name);
+    const head = el('button', undefined, 'series-head');
+    head.type = 'button';
+    head.setAttribute('aria-expanded', 'true');
+    head.append(
+      el('span', name, 'series-name'),
+      el('span', `${list.length} 卷`, 'series-n'),
+      el('span', undefined, 'series-caret'),
+    );
+    const body = el('div', undefined, 'series-body');
+    head.addEventListener('click', () => {
+      const open = head.getAttribute('aria-expanded') === 'true';
+      head.setAttribute('aria-expanded', String(!open));
+      body.hidden = open;
     });
+    list.forEach((volume) => body.append(volumeButton(volume)));
+    const group = el('section', undefined, 'series');
+    group.append(head, body);
+    host.append(group);
   });
 }
 
+function volumeButton(volume) {
+  const button = el('button', undefined, 'vol-button');
+  button.type = 'button';
+  button.dataset.slug = volume.slug;
+  button.append(
+    el('span', `Vol.${String(volume.vol).padStart(2, '0')}`, 'vol-no'),
+    el('span', volume.theme_zh || volume.label, 'vol-name'),
+    el('span', String(volume.count), 'vol-n'),
+  );
+  button.addEventListener('click', () => go({ type: 'volume', slug: volume.slug }));
+  return button;
+}
+
 function markRail() {
-  document.querySelectorAll('#volumes button').forEach((button) => {
-    button.setAttribute('aria-current', String(
-      state.view.type === 'volume' && button.dataset.slug === state.view.slug));
+  document.querySelectorAll('#volumes .series-body button').forEach((button) => {
+    const hit = state.view.type === 'volume' && button.dataset.slug === state.view.slug;
+    button.setAttribute('aria-current', String(hit));
+    const body = button.parentElement;
+    if (hit && body.hidden) {
+      body.hidden = false;
+      body.previousElementSibling?.setAttribute('aria-expanded', 'true');
+    }
   });
   $('all').setAttribute('aria-current', String(state.view.type === 'all'));
 }

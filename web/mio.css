@@ -41,6 +41,23 @@ button { cursor: pointer; }
 .bar nav a { text-decoration: none; color: var(--muted); }
 .bar nav a:hover { color: var(--accent); }
 
+/* ---------- 一级菜单（日系图库 / 澪图库），暖色版，与六库页同构 ---------- */
+.lib-bar { max-width: 1480px; margin: auto; padding: 18px 36px 0; }
+.lib-nav { display: grid; grid-template-columns: repeat(2, 196px); gap: 10px; }
+.lib-nav a {
+  display: flex; flex-direction: column; gap: 3px;
+  padding: 11px 18px; border: 1px solid var(--line); border-radius: 10px;
+  background: var(--card); text-decoration: none;
+}
+.lib-nav a strong {
+  font-family: Georgia, "Songti SC", "SimSun", serif;
+  font-size: 16px; font-weight: 600; line-height: 1.35; letter-spacing: .02em;
+}
+.lib-nav a span { font-size: 12px; color: var(--muted); line-height: 1.5; }
+.lib-nav a:hover { border-color: var(--accent); background: var(--wash); }
+.lib-nav a[aria-current="page"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+.lib-nav a[aria-current="page"] span { color: #ffffffb3; }
+
 /* ---------- 布局 ---------- */
 .shell {
   display: grid; grid-template-columns: 262px minmax(0, 1fr);
@@ -65,22 +82,30 @@ button { cursor: pointer; }
 .all[aria-current="true"] { background: var(--ink); border-color: var(--ink); color: #fff; }
 .all[aria-current="true"] span { color: #ffffffa6; }
 
-.volumes { display: grid; gap: 3px; }
-.volumes h2 {
-  margin: 16px 0 6px; font-size: 11px; letter-spacing: .18em;
-  color: var(--muted); font-weight: 500;
+/* 左栏是整个页面的第二、三级菜单：系列（可折叠）→ 卷（点击切换）。 */
+.volumes { display: grid; gap: 2px; }
+.series { display: grid; gap: 2px; }
+.series-head {
+  display: flex; align-items: center; gap: 8px; width: 100%; text-align: left;
+  margin: 14px 0 4px; padding: 5px 8px; border: 0; border-radius: 6px; background: none;
+  font-size: 11px; letter-spacing: .16em; color: var(--muted); font-weight: 500;
 }
-.volumes h2:first-child { margin-top: 0; }
-.volumes button {
+.series:first-child .series-head { margin-top: 0; }
+.series-head:hover { background: var(--wash); color: var(--accent); }
+.series-n { margin-left: auto; letter-spacing: .02em; font-variant-numeric: tabular-nums; }
+.series-caret::before { content: "▾"; font-size: 9px; }
+.series-head[aria-expanded="false"] .series-caret::before { content: "▸"; }
+.series-body { display: grid; gap: 2px; }
+.vol-button {
   display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; align-items: baseline; gap: 8px;
   width: 100%; text-align: left; border: 0; background: none; border-radius: 7px;
   padding: 7px 9px; font-size: 13px; color: var(--ink); line-height: 1.5;
 }
-.volumes button:hover { background: var(--wash); }
-.volumes button[aria-current="true"] { background: var(--accent); color: #fff; }
+.vol-button:hover { background: var(--wash); }
+.vol-button[aria-current="true"] { background: var(--accent); color: #fff; }
 .volumes .vol-no { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
-.volumes button[aria-current="true"] .vol-no,
-.volumes button[aria-current="true"] .vol-n { color: #ffffffb3; }
+.vol-button[aria-current="true"] .vol-no,
+.vol-button[aria-current="true"] .vol-n { color: #ffffffb3; }
 .volumes .vol-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .volumes .vol-n { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .rail-note { margin: 22px 0 0; font-size: 11px; line-height: 1.75; color: var(--muted); }
@@ -184,10 +209,22 @@ footer p { margin: 3px 0; }
 @media (max-width: 960px) {
   .shell { grid-template-columns: 1fr; gap: 0; padding: 0 20px 40px; }
   .rail { position: static; max-height: none; padding: 18px 0 6px; }
-  .volumes { display: flex; overflow-x: auto; gap: 6px; padding-bottom: 8px; }
-  .volumes h2 { display: none; }
-  .volumes button { width: auto; grid-template-columns: auto auto; white-space: nowrap; border: 1px solid var(--line); padding: 7px 12px; }
-  .volumes .vol-n { display: none; }
+  .lib-bar { padding: 14px 20px 0; }
+  .lib-nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .lib-nav a { padding: 9px 12px; border-radius: 9px; }
+  .lib-nav a strong { font-size: 14px; }
+  .lib-nav a span { font-size: 11px; }
+  /* 手机上卷太多，收成「系列标题 + 一行横滑」，三个系列一共三行，比纵向铺 43 卷省屏。 */
+  .volumes { display: block; }
+  .series-head { margin: 10px 0 2px; padding: 4px 2px; }
+  .series-body { display: flex; overflow-x: auto; gap: 6px; padding: 2px 0 8px; }
+  /* 横滑条里每卷是定宽块：用 flex + 不截断卷名，grid 的 1fr 会把名字压成 0 宽只剩编号。 */
+  .series-body .vol-button {
+    display: flex; gap: 6px; align-items: baseline; width: auto; white-space: nowrap;
+    border: 1px solid var(--line); padding: 7px 12px;
+  }
+  .series-body .vol-name { overflow: visible; text-overflow: clip; }
+  .series-body .vol-n { display: none; }
   .rail-note { display: none; }
   .bar { padding: 16px 20px; gap: 12px; }
   .stat { display: none; }

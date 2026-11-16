@@ -326,7 +326,9 @@ function openDeepLink() {
 
 function applyLibraryChrome() {
   document.body.dataset.lib = lib;
-  document.title = `${config.label} · AI 参考图库｜服装 · 姿势 · 脸部 · 深度姿势 · 二次元`;
+  document.title = `${config.label} · 日系图库｜AI 参考图库`;
+  // 一级菜单里的「日系图库」指回当前库，点了不重置筛选，只当作「我在这里」的锚点。
+  $('nav-jp').href = `?lib=${lib}`;
   $('headline').innerHTML = config.headline;
   $('blurb').innerHTML = config.blurb;
   $('note-label').textContent = config.note;

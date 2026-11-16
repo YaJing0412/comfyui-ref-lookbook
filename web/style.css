@@ -3,6 +3,19 @@
 .card[aria-current="true"]{outline:3px solid var(--accent,#5552d8);outline-offset:2px}
 
 
+/* 菜单三层：.lib-nav 一级（日系图库 / 澪图库）→ .tabs 二级（六个库）→ .categories 三级（分类）
+   级差靠尺寸和留白表达，不用缩进，免得窄屏把内容挤成一条缝。 */
+.lib-nav{display:grid;grid-template-columns:repeat(2,196px);gap:10px;margin:0 0 18px}
+.lib-nav a{display:flex;flex-direction:column;gap:3px;padding:11px 18px;border:1px solid var(--line);border-radius:10px;background:var(--white);text-decoration:none}
+.lib-nav a strong{font-size:16px;font-weight:600;line-height:1.35}
+.lib-nav a span{font-size:12px;color:var(--muted);line-height:1.5}
+.lib-nav a:hover{border-color:var(--blue);background:var(--soft)}
+.lib-nav a[aria-current=page]{background:var(--blue);border-color:var(--blue);color:#fff}
+.lib-nav a[aria-current=page] span{color:#ffffffb3}
+/* 手机端全局 nav a:first-child{display:none} 会连一级菜单一起藏掉，这里兜回来（.tabs 同款处理） */
+.lib-nav a:first-child{display:flex!important}
+@media(max-width:760px){.lib-nav{grid-template-columns:repeat(2,minmax(0,1fr));margin-bottom:12px}.lib-nav a{padding:9px 12px;border-radius:9px}.lib-nav a strong{font-size:14px}.lib-nav a span{font-size:11px}}
+
 /* 六库切换与二级筛选（服装 / 服装动画 / 姿势 / 脸部 / 深度姿势 / 二次元） */
 .tabs{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 22px}
 .tabs a{display:flex;align-items:center;gap:9px;padding:9px 18px;border:1px solid var(--line);border-radius:999px;background:var(--white);text-decoration:none;font-size:14px}

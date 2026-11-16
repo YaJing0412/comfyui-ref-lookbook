@@ -109,7 +109,7 @@ LoRA 是 AHEKOT 的 VNCCS PoseStudio Qwen Image 2.1 v2.0：[Civitai](https://civ
 
 | 参数 | 取值 | 说明 |
 | --- | --- | --- |
-| 采样 | 25 步 / CFG 1 / euler / simple | Qwen 2.1 的编辑流程不做 CFG，别调高 |
+| 采样 | 25 步 / CFG 1 / euler / simple | Qwen 2.1 的编辑流程不做 CFG，别调高。**CFG = 1 时负面提示词完全不起作用**，所以这次的发型约束全写在正面提示词里 |
 | 种子 | 固定值 | 换图靠改素材而不是改种子 |
 | LoRA 强度 | 1.0 | `VNCCS_QI2_PoseStudioV2` |
 | 配方 `resize_mode` | 指定尺寸（居中裁剪） | 四张参考先统一到 896×1152 再进编码器 |

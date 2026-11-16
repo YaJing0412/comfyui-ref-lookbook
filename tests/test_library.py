@@ -127,7 +127,7 @@ class LibraryIndexTests(unittest.TestCase):
         self.assertEqual(len({row['源ID'] for row in rows}), len(rows))
 
 class MioLibraryTests(unittest.TestCase):
-    """澪设计档案是平铺库：源站只有一档图，原图与缩略图是同一个文件，格式是原始 JPEG。
+    """澪设计档案是平铺库：源站只有一档图，原图与缩略图是同一个文件，格式是 JPEG。
 
     这些约束和六库（WebP 缩略图 + 按需取 png 原图）完全相反，所以单独测，不并进 LIBS。
     """
@@ -148,7 +148,20 @@ class MioLibraryTests(unittest.TestCase):
             with self.subTest(id=row['id']):
                 self.assertEqual(row['原图'], row['缩略图'])
                 self.assertTrue(row['原图'].startswith('mio/thumbs/'), row['原图'])
-                self.assertTrue(row['原图'].endswith('.jpg'), '不重编码，保持源站 JPEG')
+                self.assertTrue(row['原图'].endswith('.jpg'), '保持 JPEG，别转 WebP')
+
+    def test_every_tile_is_418_long_edge(self):
+        """图是从每卷合集按真实格边界重切的，长边统一 418 px。
+
+        源站的单件图切点偏 4~40 px，会把相邻格标题切进本格（卡片上多出半行黑字），
+        所以不能用它。这里钉住"我们自己重切"这个事实：长边必须是 418。
+        """
+        from PIL import Image
+
+        for row in self.rows:
+            path = ROOT / row['缩略图']
+            with self.subTest(id=row['id']):
+                self.assertEqual(max(Image.open(path).size), 418, row['缩略图'])
 
     def test_every_file_is_bundled(self):
         missing = [row['id'] for row in self.rows if not (ROOT / row['原图']).is_file()]
